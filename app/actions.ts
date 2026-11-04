@@ -15,7 +15,7 @@ import {
 } from "@/db/schema";
 import type { Account, Card, Transfer } from "@/db/schema";
 import { requireUserId } from "@/lib/auth";
-import { defaultTarget } from "@/lib/cards";
+import { defaultTarget, isShareable } from "@/lib/cards";
 import { getSettings } from "@/lib/config";
 import { computeUsage } from "@/lib/domain";
 import { gameDayKey } from "@/lib/game-day";
@@ -311,7 +311,7 @@ export async function createTransfer(formData: FormData): Promise<ActionResult> 
 
     const [card] = await db.select().from(cardsTable).where(eq(cardsTable.id, input.cardOutId));
     if (!card) throw new ActionError("error.cardNotFound");
-    if (input.method === "share" && !card.shareable) {
+    if (input.method === "share" && !isShareable(card)) {
       throw new ActionError("error.shareNotAllowed");
     }
     if (input.method === "trade" && !card.tradable) {
@@ -430,11 +430,6 @@ export async function markTransferSent(formData: FormData): Promise<ActionResult
             limit: settings.shareReceivePerDay,
           });
         }
-        const pairCount =
-          usage.sharePairs.get(`${transfer.fromAccountId}|${transfer.toAccountId}`) ?? 0;
-        if (pairCount >= settings.shareSendPerPairPerDay) {
-          throw new ActionError("error.pairQuotaFull");
-        }
       } else {
         if (
           (usage.tradesPerAccount.get(transfer.fromAccountId) ?? 0) >=
@@ -497,11 +492,6 @@ export async function confirmTransfer(formData: FormData): Promise<ActionResult>
       if (transfer.method === "share") {
         if ((usage.receivedShare.get(transfer.toAccountId) ?? 0) >= settings.shareReceivePerDay) {
           throw new ActionError("error.receiveQuotaConflict");
-        }
-        const pairCount =
-          usage.sharePairs.get(`${transfer.fromAccountId}|${transfer.toAccountId}`) ?? 0;
-        if (pairCount >= settings.shareSendPerPairPerDay) {
-          throw new ActionError("error.pairQuotaConflict");
         }
       } else {
         if (
@@ -1049,11 +1039,6 @@ export async function saveSettings(formData: FormData): Promise<ActionResult> {
     const next = {
       ...settings,
       shareReceivePerDay: clamp(numberField(formData, "shareReceivePerDay", settings.shareReceivePerDay), 1, 5),
-      shareSendPerPairPerDay: clamp(
-        numberField(formData, "shareSendPerPairPerDay", settings.shareSendPerPairPerDay),
-        1,
-        5,
-      ),
       tradePerAccountPerDay: clamp(
         numberField(formData, "tradePerAccountPerDay", settings.tradePerAccountPerDay),
         1,

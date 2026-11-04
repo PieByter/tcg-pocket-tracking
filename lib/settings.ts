@@ -1,8 +1,6 @@
 export type AppSettings = {
   /** Kartu yang boleh diterima satu akun per hari lewat Share. */
   shareReceivePerDay: number;
-  /** Kiriman Share dari satu akun ke akun lain per hari. */
-  shareSendPerPairPerDay: number;
   /** Batas trade per akun per hari. */
   tradePerAccountPerDay: number;
   /** Jeda hari sebelum pasangan akun yang sama boleh trade lagi. */
@@ -27,7 +25,6 @@ export type AppSettings = {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   shareReceivePerDay: 1,
-  shareSendPerPairPerDay: 1,
   tradePerAccountPerDay: 5,
   tradePairCooldownDays: 1,
   resetHour: 4,
@@ -53,7 +50,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
 export const CONFIG_KEYS: Record<keyof AppSettings, string> = {
   shareReceivePerDay: "share.receive_per_day",
-  shareSendPerPairPerDay: "share.send_per_pair_per_day",
   tradePerAccountPerDay: "trade.per_account_per_day",
   tradePairCooldownDays: "trade.pair_cooldown_days",
   resetHour: "day.reset_hour",

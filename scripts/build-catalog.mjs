@@ -68,7 +68,10 @@ for (const card of cards) {
     rarityRank: rarity.count ?? 0,
     rarityScore: rankOf(rarity),
     kind,
-    shareable: rarity.group === "Diamond" && (rarity.count ?? 0) <= 4,
+    // Share gratis: maksimal 4◇ atau 1★ (lihat isShareable di lib/cards.ts).
+    shareable:
+      (rarity.group === "Diamond" && (rarity.count ?? 0) <= 4) ||
+      (rarity.group === "Star" && (rarity.count ?? 0) <= 1),
     tradable: rarity.tradeable === true,
     element: detailed?.element ?? null,
     imageUrl: `${IMAGE_BASE}/${card.set}/${card.number}.webp`,

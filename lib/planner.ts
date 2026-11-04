@@ -121,7 +121,6 @@ function fallbackTarget(card: Card, settings: AppSettings): number {
 
 type DayBook = {
   receive: Map<string, number>;
-  sharePairs: Map<string, number>;
   trades: Map<string, number>;
 };
 
@@ -155,7 +154,7 @@ export function buildPlan(input: PlannerInput): PlannerResult {
   const bookFor = (day: string): DayBook => {
     let book = books.get(day);
     if (!book) {
-      book = { receive: new Map(), sharePairs: new Map(), trades: new Map() };
+      book = { receive: new Map(), trades: new Map() };
       books.set(day, book);
     }
     return book;
@@ -165,7 +164,6 @@ export function buildPlan(input: PlannerInput): PlannerResult {
   const todayUsage = computeUsage(usageTransfers, today);
   const todayBook = bookFor(today);
   for (const [accountId, count] of todayUsage.receivedShare) todayBook.receive.set(accountId, count);
-  for (const [pair, count] of todayUsage.sharePairs) todayBook.sharePairs.set(pair, count);
   for (const [accountId, count] of todayUsage.tradesPerAccount) todayBook.trades.set(accountId, count);
 
   const slots: PlanSlot[] = [];
@@ -198,7 +196,6 @@ export function buildPlan(input: PlannerInput): PlannerResult {
 
     if (transfer.method === "share") {
       bump(book.receive, transfer.toAccountId);
-      bump(book.sharePairs, pairKey(transfer.fromAccountId, transfer.toAccountId));
     } else {
       bump(book.trades, transfer.fromAccountId);
       bump(book.trades, transfer.toAccountId);
@@ -241,8 +238,6 @@ export function buildPlan(input: PlannerInput): PlannerResult {
 
   const receiveFree = (day: string, accountId: string) =>
     (bookFor(day).receive.get(accountId) ?? 0) < settings.shareReceivePerDay;
-  const sharePairFree = (day: string, from: string, to: string) =>
-    (bookFor(day).sharePairs.get(pairKey(from, to)) ?? 0) < settings.shareSendPerPairPerDay;
   const tradeFree = (day: string, accountId: string) =>
     (bookFor(day).trades.get(accountId) ?? 0) < settings.tradePerAccountPerDay;
   const tradePairFree = (day: string, from: string, to: string) => {
@@ -281,7 +276,6 @@ export function buildPlan(input: PlannerInput): PlannerResult {
 
     if (method === "share") {
       bump(book.receive, to.id);
-      bump(book.sharePairs, pairKey(from.id, to.id));
     } else {
       bump(book.trades, from.id);
       bump(book.trades, to.id);
@@ -323,14 +317,14 @@ export function buildPlan(input: PlannerInput): PlannerResult {
       .filter((account) => account.id !== receiver.id)
       .filter((account) => qtyOf(sim, account.id, card.id) > 0)
       .filter((account) => canDonate(sim, account, card, cards, settings, requireSpare))
-      .filter((account) =>
-        method === "share"
-          ? sharePairFree(day, account.id, receiver.id)
-          : tradeFree(day, account.id) &&
+      .filter(
+        (account) =>
+          method === "share" ||
+          (tradeFree(day, account.id) &&
             tradeFree(day, receiver.id) &&
             tradePairFree(day, account.id, receiver.id) &&
             (stamina.get(account.id) ?? 0) >= 1 &&
-            (shinedust.get(account.id) ?? 0) >= tradeCost(card, settings.tradeCosts),
+            (shinedust.get(account.id) ?? 0) >= tradeCost(card, settings.tradeCosts)),
       )
       .sort((a, b) => {
         const spareA = qtyOf(sim, a.id, card.id) - targetOf(sim, a.id, card.id, fallbackTarget(card, settings));

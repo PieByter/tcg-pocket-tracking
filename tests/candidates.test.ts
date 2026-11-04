@@ -149,12 +149,51 @@ describe("buildCandidates", () => {
     expect(trade?.method).toBe("trade");
   });
 
-  it("menandai kandidat sebagai blocked saat kuota kirim habis", () => {
-    const result = candidatesFor({ "A1-200": { qty: 3, targetQty: 2 } }, {}, {
-      quotas: { pairSendRemaining: 0 },
+  it("memberi metode share gratis untuk kartu 1★", () => {
+    const oneStar = card("A1-500", {
+      name: "Pikachu ex",
+      rarityCode: "S",
+      rarityLabel: "One Star",
+      rarityGroup: "Star",
+      rarityRank: 1,
+      rarityScore: 21,
+      shareable: false,
     });
-    expect(result[0].allowedNow).toBe(false);
-    expect(result[0].blockedReason).toBe("pairQuota");
+    const result = buildCandidates({
+      fromAccount: account("from", { name: "Pemberi", minEx: 2 }),
+      toAccount: account("to", { name: "Penerima" }),
+      cards: cardMap([...cards.values(), oneStar]),
+      holdings: holdings({ from: { "A1-500": { qty: 2, targetQty: 1 } }, to: {} }),
+      settings,
+      quota: quotaFor("from", "to", emptyUsage, settings),
+      now: new Date("2026-11-04T00:00:00Z"),
+    });
+    expect(result.find((candidate) => candidate.card.id === "A1-500")?.method).toBe("share");
+    expect(result.find((candidate) => candidate.card.id === "A1-500")?.cost).toBe(0);
+  });
+
+  it("pemberi tetap bisa share ke akun lain walau sudah banyak share hari ini", () => {
+    const busyUsage = computeUsage(
+      ["x", "y", "z"].map((target) => ({
+        method: "share" as const,
+        fromAccountId: "from",
+        toAccountId: target,
+        gameDay: "2026-11-04",
+        status: "sent" as const,
+      })),
+      "2026-11-04",
+    );
+    const result = buildCandidates({
+      fromAccount: account("from", { name: "Pemberi", minEx: 2 }),
+      toAccount: account("to", { name: "Penerima" }),
+      cards,
+      holdings: holdings({ from: { "A1-200": { qty: 3, targetQty: 2 } }, to: {} }),
+      settings,
+      quota: quotaFor("from", "to", busyUsage, settings),
+      now: new Date("2026-11-04T00:00:00Z"),
+    });
+    const candidate = result.find((item) => item.card.id === "A1-200");
+    expect(candidate?.allowedNow).toBe(true);
   });
 
   it("mengurutkan ex lebih dulu daripada trainer", () => {
@@ -256,7 +295,6 @@ describe("computeUsage", () => {
   it("menghitung hanya transfer sent/confirmed pada game day yang sama", () => {
     const usage = computeUsage(transfers, "2026-11-04");
     expect(usage.receivedShare.get("to")).toBe(1);
-    expect(usage.sharePairs.get("from|to")).toBe(1);
     expect(usage.tradesPerAccount.get("from")).toBe(1);
     expect(usage.tradesPerAccount.get("other")).toBe(1);
   });

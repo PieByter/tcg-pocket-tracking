@@ -145,14 +145,6 @@ export default async function SettingsPage() {
                 hint={t("settings.rules.shareReceiveHint")}
               />
               <NumberField
-                name="shareSendPerPairPerDay"
-                label={t("settings.rules.sharePair")}
-                defaultValue={settings.shareSendPerPairPerDay}
-                min={1}
-                max={5}
-                hint={t("settings.rules.sharePairHint")}
-              />
-              <NumberField
                 name="tradePerAccountPerDay"
                 label={t("settings.rules.trade")}
                 defaultValue={settings.tradePerAccountPerDay}

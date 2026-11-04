@@ -49,7 +49,6 @@ export default async function PlannerPage() {
 
   const rules = [
     t("planner.rules.shareReceive", { count: settings.shareReceivePerDay }),
-    t("planner.rules.sharePair", { count: settings.shareSendPerPairPerDay }),
     t("planner.rules.trade", {
       count: settings.tradePerAccountPerDay,
       cooldown: settings.tradePairCooldownDays,

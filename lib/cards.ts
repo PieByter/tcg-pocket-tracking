@@ -67,8 +67,23 @@ export function exIdentity(card: Pick<Card, "id" | "name">, mode: AppSettings["e
   return mode === "name" ? card.name.trim().toLowerCase() : card.id;
 }
 
-export function transferMethod(card: Pick<Card, "shareable" | "tradable">): "share" | "trade" | null {
-  if (card.shareable) return "share";
+/**
+ * Kartu yang bisa dibagikan gratis (Share): maksimal 4◇ atau 1★.
+ *
+ * Dihitung dari rarity, bukan dari kolom `cards.shareable` yang dibekukan saat
+ * katalog dibuat — supaya perubahan aturan langsung berlaku tanpa perlu
+ * regenerate `data/catalog.json` dan seed ulang database.
+ */
+export function isShareable(card: Pick<Card, "rarityGroup" | "rarityRank">): boolean {
+  if (card.rarityGroup === "Diamond") return card.rarityRank <= 4;
+  if (card.rarityGroup === "Star") return card.rarityRank <= 1;
+  return false;
+}
+
+export function transferMethod(
+  card: Pick<Card, "tradable" | "rarityGroup" | "rarityRank">,
+): "share" | "trade" | null {
+  if (isShareable(card)) return "share";
   if (card.tradable) return "trade";
   return null;
 }

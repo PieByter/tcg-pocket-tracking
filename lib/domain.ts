@@ -119,7 +119,6 @@ export function summarizeAccounts(
 export type DayUsage = {
   gameDay: string;
   receivedShare: Map<string, number>;
-  sharePairs: Map<string, number>;
   tradesPerAccount: Map<string, number>;
   lastTradePerPair: Map<string, string>;
 };
@@ -138,7 +137,6 @@ export function computeUsage(
   const usage: DayUsage = {
     gameDay,
     receivedShare: new Map(),
-    sharePairs: new Map(),
     tradesPerAccount: new Map(),
     lastTradePerPair: new Map(),
   };
@@ -166,8 +164,6 @@ export function computeUsage(
       transfer.toAccountId,
       (usage.receivedShare.get(transfer.toAccountId) ?? 0) + 1,
     );
-    const key = pairKey(transfer.fromAccountId, transfer.toAccountId);
-    usage.sharePairs.set(key, (usage.sharePairs.get(key) ?? 0) + 1);
   }
 
   return usage;
@@ -181,7 +177,6 @@ export function daysBetween(fromDay: string, toDay: string): number {
 
 export type Quota = {
   receiveRemaining: number;
-  pairSendRemaining: number;
   tradeFromRemaining: number;
   tradeToRemaining: number;
   tradePairBlocked: boolean;
@@ -199,11 +194,6 @@ export function quotaFor(
       0,
       settings.shareReceivePerDay - (usage.receivedShare.get(toAccountId) ?? 0),
     ),
-    pairSendRemaining: Math.max(
-      0,
-      settings.shareSendPerPairPerDay -
-        (usage.sharePairs.get(pairKey(fromAccountId, toAccountId)) ?? 0),
-    ),
     tradeFromRemaining: Math.max(
       0,
       settings.tradePerAccountPerDay - (usage.tradesPerAccount.get(fromAccountId) ?? 0),
@@ -219,7 +209,6 @@ export function quotaFor(
 
 export type CandidateBlock =
   | "receiveQuota"
-  | "pairQuota"
   | "tradeCooldown"
   | "tradeFromQuota"
   | "tradeToQuota"
@@ -313,7 +302,6 @@ export function buildCandidates(context: CandidateContext): Candidate[] {
     const blockedReasons: CandidateBlock[] = [];
     if (method === "share") {
       if (quota.receiveRemaining <= 0) blockedReasons.push("receiveQuota");
-      if (quota.pairSendRemaining <= 0) blockedReasons.push("pairQuota");
     } else {
       if (senderResources.stamina < 1) blockedReasons.push("noStamina");
       if (senderResources.shinedust < tradeCost(card, settings.tradeCosts)) {

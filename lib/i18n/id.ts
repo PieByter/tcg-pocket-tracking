@@ -214,7 +214,6 @@ export const id: Record<MessageKey, string> = {
   "matcher.engine": "Transfer matcher",
   "matcher.engineNote": "Algoritma auto-balance aktif",
   "matcher.quota.receive": "Sisa terima penerima",
-  "matcher.quota.pair": "Sisa kirim pasangan",
   "matcher.quota.tradeFrom": "Trade pemberi",
   "matcher.quota.tradeTo": "Trade penerima",
   "matcher.quota.stamina": "Stamina pemberi",
@@ -254,7 +253,6 @@ export const id: Record<MessageKey, string> = {
   "matcher.note.tradeNeedsPartner":
     "Butuh kartu duplikat dengan rarity sama dari penerima.",
   "matcher.block.receiveQuota": "kuota terima penerima habis",
-  "matcher.block.pairQuota": "kuota kirim ke akun ini habis",
   "matcher.block.tradeCooldown": "cooldown trade pasangan ini",
   "matcher.block.tradeFromQuota": "kuota trade pemberi habis",
   "matcher.block.tradeToQuota": "kuota trade penerima habis",
@@ -278,7 +276,6 @@ export const id: Record<MessageKey, string> = {
   "matcher.plan.step3.body": "Kepemilikan 8 akun diperbarui dalam satu transaksi.",
   "matcher.quotaImpact.title": "Dampak kuota",
   "matcher.quotaImpact.received": "Terima hari ini",
-  "matcher.quotaImpact.pair": "Kirim pasangan ini",
   "matcher.quotaImpact.trades": "Trade hari ini",
   "matcher.quotaImpact.note":
     "Batas di atas ditegakkan server saat “Tandai terkirim” dan dicek ulang saat konfirmasi.",
@@ -389,8 +386,6 @@ export const id: Record<MessageKey, string> = {
   "planner.rules.title": "Aturan constraint engine",
   "planner.rules.shareReceive":
     "Share: maksimal {count} kartu diterima per akun per hari.",
-  "planner.rules.sharePair":
-    "Share: maksimal {count} kiriman per pasangan akun per hari.",
   "planner.rules.trade":
     "Trade: maksimal {count} per akun per hari, cooldown {cooldown} hari per pasangan.",
   "planner.rules.reset": "Reset harian pukul {time} {timeZone}.",
@@ -468,8 +463,6 @@ export const id: Record<MessageKey, string> = {
   "settings.rules.save": "Simpan aturan",
   "settings.rules.shareReceive": "Share · terima per akun / hari",
   "settings.rules.shareReceiveHint": "Aturan game v1: 1",
-  "settings.rules.sharePair": "Share · kirim per pasangan / hari",
-  "settings.rules.sharePairHint": "Aturan game v1: 1",
   "settings.rules.trade": "Trade · per akun / hari",
   "settings.rules.tradeHint": "Belum terverifikasi; default 5",
   "settings.rules.cooldown": "Trade · cooldown pasangan (hari)",
@@ -576,13 +569,10 @@ export const id: Record<MessageKey, string> = {
   "error.onlySentCanConfirm": "Tandai terkirim dulu sebelum konfirmasi.",
   "error.receiveQuotaFull":
     "Kuota terima {limit} kartu/hari untuk akun penerima sudah habis.",
-  "error.pairQuotaFull": "Kuota kirim ke akun ini untuk hari ini sudah habis.",
   "error.tradeQuotaFull": "Kuota trade harian akun ini sudah habis.",
   "error.tradePairCooldown": "Pasangan akun ini sedang cooldown trade.",
   "error.receiveQuotaConflict":
     "Batas penerimaan harian akun ini sudah terpakai transfer lain.",
-  "error.pairQuotaConflict":
-    "Batas kirim harian pasangan akun ini sudah terpakai transfer lain.",
   "error.tradeQuotaConflict":
     "Batas trade harian akun ini sudah terpakai transfer lain.",
   "error.insufficientStock": "Stok kartu tidak cukup untuk transfer ini.",

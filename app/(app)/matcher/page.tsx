@@ -19,7 +19,6 @@ import { estimateResources } from "@/lib/resources";
 
 const blockKeys: Record<CandidateBlock, MessageKey> = {
   receiveQuota: "matcher.block.receiveQuota",
-  pairQuota: "matcher.block.pairQuota",
   tradeCooldown: "matcher.block.tradeCooldown",
   tradeFromQuota: "matcher.block.tradeFromQuota",
   tradeToQuota: "matcher.block.tradeToQuota",
@@ -117,16 +116,11 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
         <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-primary/5 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-secondary/5 blur-3xl" />
         <AccountPairPicker accounts={accounts} receiverId={receiver.id} senderId={sender.id} />
-        <div className="relative z-10 mt-3 grid grid-cols-2 gap-2 border-t border-white/[0.07] pt-3 sm:grid-cols-3 xl:grid-cols-6">
+        <div className="relative z-10 mt-3 grid grid-cols-2 gap-2 border-t border-white/[0.07] pt-3 sm:grid-cols-3 xl:grid-cols-5">
           <QuotaPill
             label={t("matcher.quota.receive")}
             value={`${quota.receiveRemaining}/${settings.shareReceivePerDay}`}
             ok={quota.receiveRemaining > 0}
-          />
-          <QuotaPill
-            label={t("matcher.quota.pair")}
-            value={`${quota.pairSendRemaining}/${settings.shareSendPerPairPerDay}`}
-            ok={quota.pairSendRemaining > 0}
           />
           <QuotaPill
             label={t("matcher.quota.tradeFrom")}
@@ -427,13 +421,6 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
                 <span>{t("matcher.quotaImpact.received")}</span>
                 <span className="font-mono text-primary">
                   {usage.receivedShare.get(receiver.id) ?? 0} / {settings.shareReceivePerDay}
-                </span>
-              </li>
-              <li className="flex items-center justify-between">
-                <span>{t("matcher.quotaImpact.pair")}</span>
-                <span className="font-mono text-primary">
-                  {usage.sharePairs.get(`${sender.id}|${receiver.id}`) ?? 0} /{" "}
-                  {settings.shareSendPerPairPerDay}
                 </span>
               </li>
               <li className="flex items-center justify-between">
