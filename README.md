@@ -9,9 +9,11 @@ Dibangun sesuai [PRD.md](./PRD.md) dan mengikuti design system PocketLedger di [
 - **Dashboard** — ringkasan defisit ex per akun, surplus yang bisa dilepas, kuota harian, dan aktivitas transfer terbaru.
 - **Transfer Matcher** — pilih akun penerima (defisit) dan pemberi (surplus); kandidat dihitung dari kepemilikan, target, dan aturan minimal ex. Badge **Share** / **Trade**, saran kartu pengganti rarity sama, serta sisa kuota hari ini.
 - **Inventory Matrix** — edit qty dan target per akun langsung di tabel 8 kolom, simpan sebagai satu batch, dengan pencarian dan filter set/rarity/jenis.
-- **Daily Transfer Planner** — jadwal greedy multi-hari untuk menutup defisit ex lalu trainer, mematuhi batas Share per akun, limit pasangan, dan kuota Trade.
+- **Daily Transfer Planner** — jadwal greedy multi-hari untuk menutup defisit ex lalu trainer, mematuhi batas Share per akun, limit pasangan, kuota Trade, serta sisa Stamina & Shinedust tiap akun. Slot yang sudah cocok bisa langsung dijadwalkan ke ledger: **Terapkan hari ini** atau **Terapkan semua N hari** (idempoten — klik ulang tidak menggandakan transfer).
 - **Riwayat Transfer** — status `planned → sent → confirmed | cancelled`. Konfirmasi memperbarui kedua akun dalam satu transaksi dan idempoten.
-- **Settings & Rules** — CRUD akun (`min_ex`, friend code) dan semua parameter game (batas Share, kuota Trade, cooldown, jam reset, zona waktu, biaya Shinedust).
+- **Stamina & Shinedust** — diisi manual per akun (menyimpan nilai baru mereset timer regen), lalu diperkirakan naik 1 stamina setiap `trade.stamina_regen_hours` (default 24 jam) sampai batas `trade.max_stamina` (default 10). Kandidat dan planner memblokir trade bila stamina pemberi habis atau Shinedust tidak cukup.
+- **Settings & Rules** — CRUD akun (`min_ex`, friend code, stamina, Shinedust) dan semua parameter game (batas Share, kuota Trade, cooldown, jam reset, zona waktu, biaya Shinedust, regen stamina).
+- **PWA** — installable di Android/iOS/desktop, manifest + service worker (cache-first untuk aset statis & thumbnail, halaman offline dua bahasa), dan thumbnail kartu dengan skeleton + lazy loading.
 
 ## Stack
 
@@ -88,6 +90,7 @@ Buka <http://localhost:3000> dan login dengan `APP_PASSWORD`.
 | `npm run db:push` | Sinkronkan skema langsung (tanpa file migrasi) |
 | `npm run db:seed` | Upsert katalog kartu + akun default + config |
 | `npm run db:seed:demo` | Seed + isi koleksi contoh |
+| `npm run icons:build` | Regenerasi ikon PWA di `public/icons/` (butuh `sharp`) |
 
 ## Bahasa / Language
 
@@ -103,6 +106,13 @@ Aplikasi mendukung **English (default)** dan **Bahasa Indonesia**. Pilihan bahas
 
 Menambah bahasa baru: buat `lib/i18n/<kode>.ts` dengan semua key, daftarkan di `LOCALES` + `dictionaries` ([lib/i18n/index.ts](./lib/i18n/index.ts)), dan perluas tipe `Locale`.
 
+## PWA & optimasi gambar
+
+- `app/manifest.ts` menyajikan `/manifest.webmanifest`; ikon 192/512 + maskable dan `apple-touch-icon` ada di `public/icons/` (dibuat oleh `npm run icons:build` memakai `sharp`).
+- `public/sw.js` didaftarkan [components/service-worker.tsx](./components/service-worker.tsx) **hanya pada build produksi**. Strategi: cache-first untuk `/_next/static/*` dan thumbnail `raw.githubusercontent.com` (maksimal 500 entri), navigasi network-only dengan fallback halaman offline bilingual. Naikkan `CACHE_VERSION` di `sw.js` bila perlu memaksa refresh cache.
+- Thumbnail memakai [components/card-image.tsx](./components/card-image.tsx): skeleton shimmer, fade-in saat load, fallback ikon bila gambar gagal, `loading="lazy"` + `decoding="async"`, dan `priority` untuk beberapa baris pertama (LCP).
+- Optimasi gambar Next (`/_next/image`) **dimatikan secara default** agar kuota Vercel Image Optimization tidak jebol — gambar diambil langsung dari GitHub. Set `NEXT_IMAGE_OPTIMIZED=1` untuk mengaktifkannya.
+
 ## Struktur
 
 ```
@@ -115,14 +125,19 @@ app/
   (app)/transfers/        riwayat & aksi status
   (app)/settings/         akun + aturan
   login/                  halaman login
+  manifest.ts             manifest PWA
   actions.ts              seluruh Server Actions (mutasi)
 components/               UI (design system PocketLedger)
+public/
+  sw.js                   service worker (cache aset + halaman offline)
+  icons/                  ikon PWA hasil `npm run icons:build`
 db/
   schema.ts               Drizzle schema (accounts, cards, holdings, transfers, app_config)
   index.ts                driver Postgres (Supabase) atau PGlite (lokal)
 lib/
   domain.ts               analisis akun, kuota harian, kandidat transfer (pure)
   planner.ts              greedy multi-day planner (pure)
+  resources.ts            estimasi stamina & Shinedust per akun (pure)
   cards.ts                rarity/kind/target helpers
   game-day.ts             perhitungan hari reset + zona waktu
   settings.ts             default & parsing konfigurasi
@@ -158,4 +173,5 @@ proxy.ts                  redirect optimistik ke /login
 - Reset harian default pukul **04:00 Asia/Jakarta**; jam reset sebenarnya belum dipastikan, ubah di Settings.
 - `min_ex` per akun default 2. Perhitungan "ex unik" default per **nama kartu** (alt-art tidak menambah); bisa diubah ke per cetakan di Settings.
 - Batas trade 5/akun/hari adalah asumsi pemilik dan belum diverifikasi; semuanya konfigurasi.
+- Stamina & Shinedust dicatat manual dan diperkirakan dari waktu update terakhir; pemblokiran dihitung dari **stamina pemberi** saja (game bisa saja membebankan kedua sisi). Regen 24 jam dan maksimal 10 stamina juga asumsi — ubah di Settings.
 - Aplikasi tidak menyimpan kredensial game dan tidak melakukan otomasi ke game.

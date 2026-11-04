@@ -209,4 +209,49 @@ describe("buildPlan", () => {
     const pair = [trade?.card.id, trade?.tradeBack?.id].sort();
     expect(pair).toEqual(["A1-300", "A1-400"]);
   });
+
+  it("tidak menjadwalkan trade tanpa stamina, lalu memakainya setelah regen harian", () => {
+    const star = card("A1-300", {
+      name: "Mewtwo ex",
+      rarityCode: "SR",
+      rarityLabel: "Super Rare",
+      rarityGroup: "Star",
+      rarityRank: 2,
+      rarityScore: 22,
+      shareable: false,
+    });
+    const starDup = card("A1-400", {
+      name: "Gengar ex",
+      rarityCode: "SR",
+      rarityLabel: "Super Rare",
+      rarityGroup: "Star",
+      rarityRank: 2,
+      rarityScore: 22,
+      shareable: false,
+    });
+    const now = new Date("2026-11-04T00:00:00Z");
+    const accounts = [
+      account("a", { minEx: 0, tradeStamina: 0, shinedust: 50_000, resourcesUpdatedAt: now }),
+      account("b", { minEx: 2, tradeStamina: 0, shinedust: 50_000, resourcesUpdatedAt: now }),
+    ];
+
+    const plan = buildPlan({
+      accounts,
+      cards: cardMap([star, starDup]),
+      holdings: holdings({
+        a: { "A1-300": { qty: 2, targetQty: 1 } },
+        b: {
+          "A1-300": { qty: 0, targetQty: 1 },
+          "A1-400": { qty: 2, targetQty: 1 },
+        },
+      }),
+      settings,
+      today: TODAY,
+      now,
+    });
+
+    expect(plan.slots).toHaveLength(1);
+    expect(plan.slots[0].day).toBe("2026-11-05");
+    expect(plan.slots[0].method).toBe("trade");
+  });
 });

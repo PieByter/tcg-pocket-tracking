@@ -3,9 +3,10 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@electric-sql/pglite", "postgres"],
   images: {
-    // Kartu diambil langsung dari CDN sumber; optimasi Next dimatikan agar
-    // daftar besar tidak menghabiskan kuota image optimization di Vercel.
-    unoptimized: true,
+    // Thumbnail dari CDN sumber. Secara default optimasi Next dimatikan agar
+    // kuota image optimization Vercel tidak habis; set NEXT_IMAGE_OPTIMIZED=1
+    // (saat build) untuk mengaktifkan optimizer bawaan Next.
+    unoptimized: process.env.NEXT_IMAGE_OPTIMIZED !== "1",
     remotePatterns: [
       {
         protocol: "https",

@@ -22,6 +22,8 @@ import { gameDayKey } from "@/lib/game-day";
 import { CONFIG_KEYS, parseSettings } from "@/lib/settings";
 import { SESSION_COOKIE, createSessionToken } from "@/lib/session";
 import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, type MessageKey } from "@/lib/i18n";
+import { buildPlan } from "@/lib/planner";
+import { loadLedger } from "@/lib/queries";
 
 export type ActionResult = {
   ok: boolean;
@@ -502,6 +504,8 @@ const accountSchema = z.object({
   friendCode: z.string().max(30).optional(),
   minEx: z.number().int().min(0).max(20),
   notes: z.string().max(280).optional(),
+  tradeStamina: z.number().int().min(0).max(99).optional(),
+  shinedust: z.number().int().min(0).max(9_999_999).optional(),
 });
 
 export async function saveAccount(formData: FormData): Promise<ActionResult> {
@@ -513,10 +517,26 @@ export async function saveAccount(formData: FormData): Promise<ActionResult> {
       friendCode: text(formData, "friendCode") || undefined,
       minEx: Math.trunc(numberField(formData, "minEx", 2)),
       notes: text(formData, "notes") || undefined,
+      tradeStamina:
+        formData.get("tradeStamina") === null
+          ? undefined
+          : Math.trunc(numberField(formData, "tradeStamina", 0)),
+      shinedust:
+        formData.get("shinedust") === null
+          ? undefined
+          : Math.trunc(numberField(formData, "shinedust", 0)),
     });
 
     const db = await getDb();
     if (input.id) {
+      const [existing] = await db.select().from(accounts).where(eq(accounts.id, input.id));
+      if (!existing) throw new ActionError("error.accountNotFound");
+
+      const stamina = input.tradeStamina ?? existing.tradeStamina;
+      const dust = input.shinedust ?? existing.shinedust;
+      const resourcesChanged =
+        stamina !== existing.tradeStamina || dust !== existing.shinedust;
+
       await db
         .update(accounts)
         .set({
@@ -524,6 +544,9 @@ export async function saveAccount(formData: FormData): Promise<ActionResult> {
           friendCode: input.friendCode ?? null,
           minEx: input.minEx,
           notes: input.notes ?? null,
+          tradeStamina: stamina,
+          shinedust: dust,
+          resourcesUpdatedAt: resourcesChanged ? new Date() : existing.resourcesUpdatedAt,
         })
         .where(eq(accounts.id, input.id));
     } else {
@@ -533,12 +556,94 @@ export async function saveAccount(formData: FormData): Promise<ActionResult> {
         friendCode: input.friendCode ?? null,
         minEx: input.minEx,
         notes: input.notes ?? null,
+        tradeStamina: input.tradeStamina ?? 0,
+        shinedust: input.shinedust ?? 0,
         sortOrder: existing.length,
       });
     }
 
     refresh();
     return { ok: true, key: "action.account.saved" };
+  } catch (error) {
+    return toResult(error);
+  }
+}
+
+export async function saveResources(formData: FormData): Promise<ActionResult> {
+  try {
+    const accountId = text(formData, "accountId");
+    if (!accountId) throw new ActionError("error.accountNotFound");
+
+    const stamina = Math.max(0, Math.min(99, Math.trunc(numberField(formData, "stamina", 0))));
+    const shinedust = Math.max(
+      0,
+      Math.min(9_999_999, Math.trunc(numberField(formData, "shinedust", 0))),
+    );
+
+    const db = await getDb();
+    const updated = await db
+      .update(accounts)
+      .set({ tradeStamina: stamina, shinedust, resourcesUpdatedAt: new Date() })
+      .where(eq(accounts.id, accountId))
+      .returning({ id: accounts.id });
+    if (updated.length === 0) throw new ActionError("error.accountNotFound");
+
+    refresh();
+    return { ok: true, key: "action.resources.saved" };
+  } catch (error) {
+    return toResult(error);
+  }
+}
+
+export async function applyPlan(formData: FormData): Promise<ActionResult> {
+  try {
+    const days = Math.max(0, Math.trunc(numberField(formData, "days", 0)));
+    const ledger = await loadLedger();
+    const plan = buildPlan({
+      accounts: ledger.accounts,
+      cards: ledger.cards,
+      holdings: ledger.holdings,
+      settings: ledger.settings,
+      today: ledger.today,
+      transfers: ledger.transfers,
+      now: new Date(),
+    });
+
+    const slots = days > 0 ? plan.slots.filter((slot) => slot.dayIndex < days) : plan.slots;
+    if (slots.length === 0) return { ok: true, key: "action.plan.none" };
+
+    const existing = new Set(
+      ledger.transfers
+        .filter((transfer) => transfer.status === "planned")
+        .map(
+          (transfer) =>
+            `${transfer.fromAccountId}|${transfer.toAccountId}|${transfer.cardOutId}|${transfer.plannedDay ?? ""}`,
+        ),
+    );
+
+    const values = slots.flatMap((slot) => {
+      const key = `${slot.from.id}|${slot.to.id}|${slot.card.id}|${slot.day}`;
+      if (existing.has(key)) return [];
+      existing.add(key);
+      return [
+        {
+          method: slot.method,
+          fromAccountId: slot.from.id,
+          toAccountId: slot.to.id,
+          cardOutId: slot.card.id,
+          cardInId: slot.method === "trade" ? slot.tradeBack?.id ?? null : null,
+          plannedDay: slot.day,
+          status: "planned" as const,
+        },
+      ];
+    });
+
+    if (values.length === 0) return { ok: true, key: "action.plan.none" };
+
+    const db = await getDb();
+    await db.insert(transfers).values(values);
+    refresh();
+    return { ok: true, key: "action.plan.applied", params: { count: values.length } };
   } catch (error) {
     return toResult(error);
   }
@@ -597,6 +702,16 @@ export async function saveSettings(formData: FormData): Promise<ActionResult> {
         numberField(formData, "plannerHorizonDays", settings.plannerHorizonDays),
         1,
         60,
+      ),
+      tradeStaminaRegenHours: clamp(
+        numberField(formData, "tradeStaminaRegenHours", settings.tradeStaminaRegenHours),
+        1,
+        168,
+      ),
+      maxTradeStamina: clamp(
+        numberField(formData, "maxTradeStamina", settings.maxTradeStamina),
+        1,
+        99,
       ),
     };
 

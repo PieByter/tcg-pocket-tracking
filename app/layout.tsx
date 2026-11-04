@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import { preconnect } from "react-dom";
 import { Geist, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import { I18nProvider } from "@/components/i18n-provider";
+import { ServiceWorkerRegister } from "@/components/service-worker";
 import { getI18n } from "@/lib/i18n/server";
 import "./globals.css";
 
@@ -14,6 +16,16 @@ export async function generateMetadata(): Promise<Metadata> {
     title: t("dash.metaTitle"),
     description: t("dash.metaDescription"),
     robots: { index: false, follow: false },
+    applicationName: "PocketLedger",
+    appleWebApp: { capable: true, title: "PocketLedger", statusBarStyle: "black-translucent" },
+    icons: {
+      icon: [
+        { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+        { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+        { url: "/icon.svg", type: "image/svg+xml" },
+      ],
+      apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    },
   };
 }
 
@@ -23,6 +35,7 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const { locale } = await getI18n();
+  preconnect("https://raw.githubusercontent.com");
 
   return (
     <html
@@ -31,6 +44,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full">
         <I18nProvider locale={locale}>{children}</I18nProvider>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

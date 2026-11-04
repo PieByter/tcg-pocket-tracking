@@ -12,6 +12,9 @@ export function account(id: string, overrides: Partial<Account> = {}): Account {
     minEx: 2,
     sortOrder: 0,
     notes: null,
+    tradeStamina: 5,
+    shinedust: 50_000,
+    resourcesUpdatedAt: new Date("2026-11-04T00:00:00Z"),
     createdAt: new Date("2026-01-01T00:00:00Z"),
     ...overrides,
   };

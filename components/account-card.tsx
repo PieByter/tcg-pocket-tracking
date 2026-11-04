@@ -29,14 +29,17 @@ export type Recommendation = {
 export async function AccountCard({
   summary,
   recommendations,
+  resources,
 }: {
   summary: AccountSummary;
   recommendations: Recommendation[];
+  resources?: { stamina: number; shinedust: number; regenSinceUpdate: number; hoursToNextStamina: number | null };
 }) {
-  const { t } = await getI18n();
+  const { locale, t } = await getI18n();
   const { account } = summary;
   const topSpare = summary.spare.slice(0, 3);
   const shortName = account.name.replace(/^Akun \d+:\s*/, "");
+  const dust = resources ? new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-GB").format(resources.shinedust) : null;
 
   return (
     <article className="panel flex flex-col overflow-hidden">
@@ -72,6 +75,31 @@ export async function AccountCard({
             <span className="text-outline"> {t("account.min", { min: account.minEx })}</span>
           </p>
         </div>
+
+        {resources && (
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-label-sm text-on-surface-variant">
+            <span
+              className="inline-flex items-center gap-1"
+              title={
+                resources.regenSinceUpdate > 0
+                  ? t("account.resourcesEstimated", { count: resources.regenSinceUpdate })
+                  : t("account.stamina")
+              }
+            >
+              <Icon name="bolt" className="h-3 w-3 text-secondary" />
+              {resources.stamina}
+              {resources.hoursToNextStamina !== null && (
+                <span className="text-outline">
+                  · {t("account.resourcesNext", { hours: resources.hoursToNextStamina })}
+                </span>
+              )}
+            </span>
+            <span className="inline-flex items-center gap-1" title={t("account.shinedust")}>
+              <Icon name="sparkles" className="h-3 w-3 text-tertiary" />
+              {dust}
+            </span>
+          </p>
+        )}
       </div>
 
       <div className="mt-3 flex flex-1 flex-col gap-2 px-4">

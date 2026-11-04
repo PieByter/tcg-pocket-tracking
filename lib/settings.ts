@@ -19,6 +19,10 @@ export type AppSettings = {
   plannerHorizonDays: number;
   /** Biaya Shinedust per rarity code (informasi di UI Trade). */
   tradeCosts: Record<string, number>;
+  /** Regenerasi Trade Stamina dalam jam (default 24). */
+  tradeStaminaRegenHours: number;
+  /** Batas maksimal Trade Stamina yang diasumsikan (dipakai untuk estimasi). */
+  maxTradeStamina: number;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -43,6 +47,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     S: 10000,
     SSR: 30000,
   },
+  tradeStaminaRegenHours: 24,
+  maxTradeStamina: 10,
 };
 
 export const CONFIG_KEYS: Record<keyof AppSettings, string> = {
@@ -57,6 +63,8 @@ export const CONFIG_KEYS: Record<keyof AppSettings, string> = {
   exCountMode: "holdings.ex_count_mode",
   plannerHorizonDays: "planner.horizon_days",
   tradeCosts: "trade.costs",
+  tradeStaminaRegenHours: "trade.stamina_regen_hours",
+  maxTradeStamina: "trade.max_stamina",
 };
 
 export function configKey(key: keyof AppSettings): string {

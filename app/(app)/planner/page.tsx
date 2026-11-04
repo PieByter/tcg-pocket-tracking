@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createTransfer } from "@/app/actions";
+import { applyPlan, createTransfer } from "@/app/actions";
 import { ActionButton } from "@/components/action-button";
 import { MethodBadge, RarityChip, StatusBadge } from "@/components/badges";
 import { CardImage } from "@/components/card-image";
@@ -10,6 +10,7 @@ import { relativeDayLabel } from "@/lib/game-day";
 import { getI18n } from "@/lib/i18n/server";
 import { buildPlan, planSummaryByDay } from "@/lib/planner";
 import { loadLedger } from "@/lib/queries";
+import { staminaRegenPerDay } from "@/lib/resources";
 
 export async function generateMetadata() {
   const { t } = await getI18n();
@@ -27,7 +28,11 @@ export default async function PlannerPage() {
     settings,
     today: ledger.today,
     transfers: ledger.transfers,
+    now: new Date(),
   });
+
+  const todaySlotCount = plan.slots.filter((slot) => slot.dayIndex === 0).length;
+  const staminaRegen = staminaRegenPerDay(settings);
 
   const byDay = planSummaryByDay(plan);
   const days = [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b));
@@ -48,6 +53,7 @@ export default async function PlannerPage() {
       cooldown: settings.tradePairCooldownDays,
     }),
     t("planner.rules.reset", { time: resetTime, timeZone: settings.timeZone }),
+    t("planner.rules.resources", { regen: staminaRegen }),
     t("planner.rules.immovable"),
   ];
 
@@ -58,10 +64,37 @@ export default async function PlannerPage() {
         title={t("planner.title")}
         description={t("planner.description")}
         actions={
-          <Link href="/matcher" className="btn-secondary">
-            <Icon name="swap" className="h-4 w-4" />
-            {t("planner.action.matcher")}
-          </Link>
+          <>
+            {todaySlotCount > 0 && (
+              <ActionButton
+                action={applyPlan}
+                fields={{ days: "1" }}
+                label={t("planner.action.applyToday", { count: todaySlotCount })}
+                pendingLabel={t("common.saving")}
+                icon="check"
+                variant="primary"
+                explain
+              />
+            )}
+            {plan.totalSlots > todaySlotCount && (
+              <ActionButton
+                action={applyPlan}
+                fields={{ days: "0" }}
+                label={t("planner.action.applyAll", {
+                  days: plan.daysUsed,
+                  count: plan.totalSlots,
+                })}
+                pendingLabel={t("common.saving")}
+                icon="planner"
+                variant="secondary"
+                explain
+              />
+            )}
+            <Link href="/matcher" className="btn-secondary">
+              <Icon name="swap" className="h-4 w-4" />
+              {t("planner.action.matcher")}
+            </Link>
+          </>
         }
       />
 
@@ -261,6 +294,7 @@ export default async function PlannerPage() {
             <Link href="/settings" className="btn-secondary mt-3 w-full">
               {t("planner.rules.edit")}
             </Link>
+            <p className="mt-2 text-[11px] text-on-surface-variant">{t("planner.action.applyNote")}</p>
           </section>
 
           <section className="panel p-3">

@@ -25,7 +25,8 @@ export type IconName =
   | "filter"
   | "package"
   | "repeat"
-  | "external";
+  | "external"
+  | "bolt";
 
 const paths: Record<IconName, ReactNode> = {
   dashboard: (
@@ -131,6 +132,7 @@ const paths: Record<IconName, ReactNode> = {
       <path d="M10 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" />
     </>
   ),
+  bolt: <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" />,
 };
 
 export function Icon({

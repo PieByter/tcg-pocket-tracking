@@ -160,6 +160,10 @@ export const id: Record<MessageKey, string> = {
   "account.trainerDeficit": "Trainer defisit",
   "account.surplus": "Surplus",
   "account.help": "Bantu akun ini",
+  "account.stamina": "Stamina",
+  "account.shinedust": "Shinedust",
+  "account.resourcesEstimated": "estimasi · +{count} sejak update",
+  "account.resourcesNext": "+1 berikutnya dalam {hours} jam",
 
   "matcher.metaTitle": "Transfer Matcher — PocketLedger",
   "matcher.needTwo.title": "Butuh minimal dua akun",
@@ -183,6 +187,8 @@ export const id: Record<MessageKey, string> = {
   "matcher.quota.pair": "Sisa kirim pasangan",
   "matcher.quota.tradeFrom": "Trade pemberi",
   "matcher.quota.tradeTo": "Trade penerima",
+  "matcher.quota.stamina": "Stamina pemberi",
+  "matcher.quota.shinedust": "Shinedust pemberi",
   "matcher.kpi.def": "Defisit · {account}",
   "matcher.kpi.defHint": "ex unik kurang",
   "matcher.kpi.defDetail": "Trainer kurang {count} kartu",
@@ -223,6 +229,8 @@ export const id: Record<MessageKey, string> = {
   "matcher.block.tradeFromQuota": "kuota trade pemberi habis",
   "matcher.block.tradeToQuota": "kuota trade penerima habis",
   "matcher.block.noTradeBack": "penerima belum punya duplikat rarity sama",
+  "matcher.block.noStamina": "stamina trade pemberi habis",
+  "matcher.block.noShinedust": "Shinedust pemberi tidak cukup untuk trade ini",
   "matcher.tradeBack": "Saran pengganti dari {account}:",
   "matcher.action.share": "Pilih untuk Share",
   "matcher.action.trade": "Siapkan Trade",
@@ -244,6 +252,16 @@ export const id: Record<MessageKey, string> = {
   "matcher.quotaImpact.trades": "Trade hari ini",
   "matcher.quotaImpact.note":
     "Batas di atas ditegakkan server saat “Tandai terkirim” dan dicek ulang saat konfirmasi.",
+  "matcher.resources.title": "Resource trade",
+  "matcher.resources.subtitle":
+    "Isi sesuai nilai di game. Stamina pulih 1 per {hours} jam; estimasi menambahkan regen sejak update terakhir.",
+  "matcher.resources.stamina": "Stamina",
+  "matcher.resources.shinedust": "Shinedust",
+  "matcher.resources.next": "+1 berikutnya dalam {hours} jam",
+  "matcher.resources.max": "sudah maksimal",
+  "matcher.resources.save": "Update",
+  "matcher.resources.note":
+    "Angka diisi manual. Menyimpan akan mereset timer regen; kandidat trade diblokir bila stamina atau Shinedust kurang.",
   "matcher.collection.title": "Catatan koleksi",
   "matcher.collection.body":
     "Kartu 3★, Immersive, dan Crown tidak bisa dipindahkan dan tidak pernah muncul sebagai kandidat.",
@@ -304,6 +322,10 @@ export const id: Record<MessageKey, string> = {
   "planner.description":
     "Algoritma greedy menyusun jadwal paling cepat untuk menutup defisit ex dan trainer, mematuhi batas Share per akun serta kuota Trade.",
   "planner.action.matcher": "Matcher manual",
+  "planner.action.applyToday": "Terapkan hari ini ({count})",
+  "planner.action.applyAll": "Terapkan semua {days} hari ({count})",
+  "planner.action.applyNote":
+    "Membuat transfer planned di ledger. Eksekusi di game, lalu konfirmasi.",
   "planner.kpi.days.label": "Estimasi solusi",
   "planner.kpi.days.value": "{days} hari",
   "planner.kpi.days.hint": "hingga nol defisit",
@@ -344,6 +366,8 @@ export const id: Record<MessageKey, string> = {
   "planner.rules.reset": "Reset harian pukul {time} {timeZone}.",
   "planner.rules.immovable":
     "Kartu 3★ / Immersive / Crown tidak pernah dipindahkan dan tidak masuk jadwal.",
+  "planner.rules.resources":
+    "Stamina dan Shinedust trade disimulasikan per pemberi: +{regen}/hari, trade memakai 1 stamina dan biaya Shinedust-nya.",
   "planner.rules.edit": "Ubah aturan",
   "planner.remaining.title": "Sisa defisit per akun",
   "planner.audit.title": "Audit log terbaru",
@@ -401,6 +425,10 @@ export const id: Record<MessageKey, string> = {
   "settings.accounts.field.friendCode": "Friend code",
   "settings.accounts.field.minEx": "Minimal ex unik",
   "settings.accounts.field.notes": "Catatan",
+  "settings.accounts.field.stamina": "Stamina trade",
+  "settings.accounts.field.shinedust": "Shinedust",
+  "settings.accounts.field.resourcesHint":
+    "Diisi manual; mengubah nilai ini mereset timer regenerasi stamina.",
   "settings.accounts.add.title": "Tambah akun",
   "settings.accounts.add.submit": "Tambah akun",
   "settings.accounts.namePlaceholder": "Akun 9: …",
@@ -422,6 +450,10 @@ export const id: Record<MessageKey, string> = {
   "settings.rules.exTarget": "Target default kartu ex",
   "settings.rules.trainerTarget": "Target default trainer",
   "settings.rules.horizon": "Horizon planner (hari)",
+  "settings.rules.staminaRegen": "Regen stamina trade (jam)",
+  "settings.rules.staminaRegenHint": "Game me-refresh stamina tiap 24 jam (asumsi)",
+  "settings.rules.maxStamina": "Maksimal stamina trade",
+  "settings.rules.maxStaminaHint": "Dipakai membatasi estimasi; default 10",
   "settings.rules.exMode": "Perhitungan ex unik",
   "settings.rules.exModeName": "Per nama kartu (alt-art tidak menambah)",
   "settings.rules.exModePrint": "Per cetakan (tiap alt-art dihitung)",
@@ -448,6 +480,9 @@ export const id: Record<MessageKey, string> = {
   "action.cancelled": "Transfer dibatalkan.",
   "action.account.saved": "Akun disimpan.",
   "action.account.deleted": "Akun dihapus.",
+  "action.resources.saved": "Resource diperbarui.",
+  "action.plan.applied": "{count} rencana ditambahkan ke ledger.",
+  "action.plan.none": "Tidak ada rencana baru untuk ditambahkan.",
   "action.settings.saved": "Aturan disimpan.",
 
   "error.invalidInput": "Input tidak valid.",
@@ -479,6 +514,7 @@ export const id: Record<MessageKey, string> = {
   "error.cannotCancel": "Transfer tidak bisa dibatalkan.",
   "error.accountHasHistory":
     "Akun masih dipakai di riwayat transfer. Batalkan/arsipkan dulu.",
+  "error.accountNotFound": "Akun tidak ditemukan.",
 
   "lang.en": "English",
   "lang.id": "Indonesia",

@@ -1,6 +1,7 @@
 import type { Account, Card, Holding, Transfer } from "@/db/schema";
 import type { AppSettings } from "./settings";
 import { exIdentity, transferMethod, tradeCost } from "./cards";
+import { estimateResources } from "./resources";
 
 export type HoldingState = { qty: number; targetQty: number };
 export type HoldingsByAccount = Map<string, Map<string, HoldingState>>;
@@ -222,7 +223,9 @@ export type CandidateBlock =
   | "tradeCooldown"
   | "tradeFromQuota"
   | "tradeToQuota"
-  | "noTradeBack";
+  | "noTradeBack"
+  | "noStamina"
+  | "noShinedust";
 
 export type Candidate = {
   card: Card;
@@ -244,6 +247,7 @@ type CandidateContext = {
   holdings: HoldingsByAccount;
   settings: AppSettings;
   quota: Quota;
+  now: Date;
 };
 
 function senderExState(context: CandidateContext) {
@@ -264,11 +268,13 @@ function keepsMinEx(
 }
 
 export function buildCandidates(context: CandidateContext): Candidate[] {
-  const { fromAccount, toAccount, cards, holdings, settings, quota } = context;
+  const { fromAccount, toAccount, cards, holdings, settings, quota, now } = context;
   const senderHoldings = holdings.get(fromAccount.id) ?? new Map<string, HoldingState>();
   const receiverHoldings = holdings.get(toAccount.id) ?? new Map<string, HoldingState>();
 
   if (fromAccount.id === toAccount.id) return [];
+
+  const senderResources = estimateResources(fromAccount, now, settings);
 
   const exState = senderExState(context);
   const tradeBacks = new Map<string, { card: Card; qty: number }>();
@@ -309,6 +315,10 @@ export function buildCandidates(context: CandidateContext): Candidate[] {
       if (quota.receiveRemaining <= 0) blockedReasons.push("receiveQuota");
       if (quota.pairSendRemaining <= 0) blockedReasons.push("pairQuota");
     } else {
+      if (senderResources.stamina < 1) blockedReasons.push("noStamina");
+      if (senderResources.shinedust < tradeCost(card, settings.tradeCosts)) {
+        blockedReasons.push("noShinedust");
+      }
       if (quota.tradePairBlocked) blockedReasons.push("tradeCooldown");
       if (quota.tradeFromRemaining <= 0) blockedReasons.push("tradeFromQuota");
       if (quota.tradeToRemaining <= 0) blockedReasons.push("tradeToQuota");

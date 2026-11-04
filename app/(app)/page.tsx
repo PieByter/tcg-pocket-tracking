@@ -6,6 +6,7 @@ import { TransferRow } from "@/components/transfer-row";
 import { buildCandidates, quotaFor } from "@/lib/domain";
 import { getI18n } from "@/lib/i18n/server";
 import { loadLedger } from "@/lib/queries";
+import { estimateResources } from "@/lib/resources";
 
 function recommendationsFor(ledger: Awaited<ReturnType<typeof loadLedger>>, receiverId: string) {
   const receiver = ledger.accounts.find((account) => account.id === receiverId);
@@ -21,6 +22,7 @@ function recommendationsFor(ledger: Awaited<ReturnType<typeof loadLedger>>, rece
       holdings: ledger.holdings,
       settings: ledger.settings,
       quota: quotaFor(donor.id, receiverId, ledger.usage, ledger.settings),
+      now: new Date(),
     });
     for (const candidate of candidates) {
       if (candidate.card.kind !== "ex") continue;
@@ -48,6 +50,7 @@ export default async function DashboardPage() {
   const tradeUsed = [...ledger.usage.tradesPerAccount.values()].reduce((total, value) => total + value, 0);
   const minEx = accounts.length > 0 ? Math.min(...accounts.map((account) => account.minEx)) : 2;
   const resetTime = `${String(settings.resetHour).padStart(2, "0")}:00`;
+  const now = new Date();
 
   return (
     <div className="space-y-8">
@@ -200,6 +203,7 @@ export default async function DashboardPage() {
                 <AccountCard
                   key={summary.account.id}
                   summary={summary}
+                  resources={estimateResources(summary.account, now, settings)}
                   recommendations={
                     summary.status === "needs" || summary.status === "critical"
                       ? recommendationsFor(ledger, summary.account.id)

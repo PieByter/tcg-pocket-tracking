@@ -22,6 +22,15 @@ const star = card("A1-300", {
   rarityScore: 22,
   shareable: false,
 });
+const starDup = card("A1-400", {
+  name: "Gengar ex",
+  rarityCode: "SR",
+  rarityLabel: "Super Rare",
+  rarityGroup: "Star",
+  rarityRank: 2,
+  rarityScore: 22,
+  shareable: false,
+});
 const immersive = card("A1-301", {
   name: "Pikachu ex",
   rarityCode: "IM",
@@ -34,16 +43,24 @@ const immersive = card("A1-301", {
   kind: "ex",
 });
 
-const cards = cardMap([ex1, ex2, ex3, trainer, star, immersive]);
+const cards = cardMap([ex1, ex2, ex3, trainer, star, starDup, immersive]);
 
 const emptyUsage = computeUsage([], "2026-11-04");
 
 function candidatesFor(
   fromHoldings: AccountHoldings,
   toHoldings: AccountHoldings,
-  overrides: { fromMinEx?: number; quotas?: Partial<ReturnType<typeof quotaFor>> } = {},
+  overrides: {
+    fromMinEx?: number;
+    quotas?: Partial<ReturnType<typeof quotaFor>>;
+    fromAccount?: Parameters<typeof account>[1];
+  } = {},
 ) {
-  const from = account("from", { name: "Pemberi", minEx: overrides.fromMinEx ?? 2 });
+  const from = account("from", {
+    name: "Pemberi",
+    minEx: overrides.fromMinEx ?? 2,
+    ...overrides.fromAccount,
+  });
   const to = account("to", { name: "Penerima" });
   const baseQuota = quotaFor(from.id, to.id, emptyUsage, settings);
   return buildCandidates({
@@ -53,6 +70,7 @@ function candidatesFor(
     holdings: holdings({ from: fromHoldings, to: toHoldings }),
     settings,
     quota: { ...baseQuota, ...overrides.quotas },
+    now: new Date("2026-11-04T00:00:00Z"),
   });
 }
 
@@ -150,6 +168,56 @@ describe("buildCandidates", () => {
       {},
     );
     expect(result[0].card.kind).toBe("ex");
+  });
+
+  it("memblokir trade tanpa stamina, dan membuka setelah regen", () => {
+    const holdingsForTrade = {
+      "A1-300": { qty: 2, targetQty: 1 },
+      "A1-100": { qty: 1, targetQty: 1 },
+      "A1-101": { qty: 1, targetQty: 1 },
+    };
+    const receiverHoldings = { "A1-400": { qty: 2, targetQty: 1 } };
+
+    const blocked = candidatesFor(holdingsForTrade, receiverHoldings, {
+      fromAccount: {
+        tradeStamina: 0,
+        shinedust: 50_000,
+        resourcesUpdatedAt: new Date("2026-11-04T00:00:00Z"),
+      },
+    });
+    const tradeCandidate = blocked.find((candidate) => candidate.card.id === "A1-300");
+    expect(tradeCandidate?.allowedNow).toBe(false);
+    expect(tradeCandidate?.blockedReason).toBe("noStamina");
+
+    const funded = candidatesFor(holdingsForTrade, receiverHoldings, {
+      fromAccount: {
+        tradeStamina: 1,
+        shinedust: 50_000,
+        resourcesUpdatedAt: new Date("2026-11-04T00:00:00Z"),
+      },
+    });
+    expect(funded.find((candidate) => candidate.card.id === "A1-300")?.allowedNow).toBe(true);
+  });
+
+  it("memblokir trade bila Shinedust tidak cukup", () => {
+    const result = candidatesFor(
+      {
+        "A1-300": { qty: 2, targetQty: 1 },
+        "A1-100": { qty: 1, targetQty: 1 },
+        "A1-101": { qty: 1, targetQty: 1 },
+      },
+      { "A1-400": { qty: 2, targetQty: 1 } },
+      {
+        fromAccount: {
+          tradeStamina: 5,
+          shinedust: 1000,
+          resourcesUpdatedAt: new Date("2026-11-04T00:00:00Z"),
+        },
+      },
+    );
+    const tradeCandidate = result.find((candidate) => candidate.card.id === "A1-300");
+    expect(tradeCandidate?.allowedNow).toBe(false);
+    expect(tradeCandidate?.blockedReason).toBe("noShinedust");
   });
 });
 

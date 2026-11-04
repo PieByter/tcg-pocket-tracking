@@ -155,6 +155,10 @@ export const en = {
   "account.trainerDeficit": "Trainer deficit",
   "account.surplus": "Surplus",
   "account.help": "Help this account",
+  "account.stamina": "Stamina",
+  "account.shinedust": "Shinedust",
+  "account.resourcesEstimated": "estimated · +{count} since update",
+  "account.resourcesNext": "next +1 in {hours}h",
 
   "matcher.metaTitle": "Transfer Matcher — PocketLedger",
   "matcher.needTwo.title": "At least two accounts required",
@@ -178,6 +182,8 @@ export const en = {
   "matcher.quota.pair": "Pair send left",
   "matcher.quota.tradeFrom": "Sender trade",
   "matcher.quota.tradeTo": "Receiver trade",
+  "matcher.quota.stamina": "Sender stamina",
+  "matcher.quota.shinedust": "Sender Shinedust",
   "matcher.kpi.def": "Deficit · {account}",
   "matcher.kpi.defHint": "unique ex missing",
   "matcher.kpi.defDetail": "Trainer still short {count} cards",
@@ -214,6 +220,8 @@ export const en = {
   "matcher.block.tradeFromQuota": "the sender’s trade quota is used up",
   "matcher.block.tradeToQuota": "the receiver’s trade quota is used up",
   "matcher.block.noTradeBack": "the receiver has no duplicate of the same rarity yet",
+  "matcher.block.noStamina": "the sender has no trade stamina",
+  "matcher.block.noShinedust": "the sender lacks Shinedust for this trade",
   "matcher.tradeBack": "Suggested swap from {account}:",
   "matcher.action.share": "Select for Share",
   "matcher.action.trade": "Prepare Trade",
@@ -234,8 +242,17 @@ export const en = {
   "matcher.quotaImpact.trades": "Trades today",
   "matcher.quotaImpact.note":
     "These limits are enforced server-side when you mark a transfer sent and re-checked on confirmation.",
-  "matcher.collection.title": "Collection note",
-  "matcher.collection.body":
+  "matcher.resources.title": "Trade resources",
+  "matcher.resources.subtitle":
+    "Enter values from the game. Stamina regenerates one per {hours}h; the estimate adds regen since the last update.",
+  "matcher.resources.stamina": "Stamina",
+  "matcher.resources.shinedust": "Shinedust",
+  "matcher.resources.next": "next +1 in {hours}h",
+  "matcher.resources.max": "at max",
+  "matcher.resources.save": "Update",
+  "matcher.resources.note":
+    "Values are manual. Saving resets the regeneration timer; blocked trades explain when stamina or Shinedust is short.",
+  "matcher.collection.title": "Collection note",  "matcher.collection.body":
     "3★, Immersive, and Crown cards cannot be moved and never appear as candidates.",
   "matcher.collection.action": "Open Inventory Matrix",
   "matcher.history.title": "Latest transfers",
@@ -292,6 +309,10 @@ export const en = {
   "planner.description":
     "A greedy algorithm builds the fastest schedule to close ex and trainer deficits while respecting per-account Share limits and Trade quotas.",
   "planner.action.matcher": "Manual matcher",
+  "planner.action.applyToday": "Apply today ({count})",
+  "planner.action.applyAll": "Apply all {days} days ({count})",
+  "planner.action.applyNote":
+    "Creates planned transfers in the ledger. Execute them in game, then confirm.",
   "planner.kpi.days.label": "Estimated solution",
   "planner.kpi.days.value": "{days} days",
   "planner.kpi.days.hint": "to zero deficit",
@@ -329,6 +350,8 @@ export const en = {
     "Trade: at most {count} per account per day, {cooldown}-day cooldown per pair.",
   "planner.rules.reset": "Daily reset at {time} {timeZone}.",
   "planner.rules.immovable": "3★ / Immersive / Crown cards are never moved and never scheduled.",
+  "planner.rules.resources":
+    "Trade stamina and Shinedust are simulated per sender: +{regen}/day, a trade uses 1 stamina and its Shinedust cost.",
   "planner.rules.edit": "Edit rules",
   "planner.remaining.title": "Remaining deficit per account",
   "planner.audit.title": "Latest audit log",
@@ -384,6 +407,10 @@ export const en = {
   "settings.accounts.field.friendCode": "Friend code",
   "settings.accounts.field.minEx": "Minimum unique ex",
   "settings.accounts.field.notes": "Notes",
+  "settings.accounts.field.stamina": "Trade stamina",
+  "settings.accounts.field.shinedust": "Shinedust",
+  "settings.accounts.field.resourcesHint":
+    "Manual entry; changing these values resets the stamina regeneration timer.",
   "settings.accounts.add.title": "Add account",
   "settings.accounts.add.submit": "Add account",
   "settings.accounts.namePlaceholder": "Account 9: …",
@@ -405,6 +432,10 @@ export const en = {
   "settings.rules.exTarget": "Default ex card target",
   "settings.rules.trainerTarget": "Default trainer target",
   "settings.rules.horizon": "Planner horizon (days)",
+  "settings.rules.staminaRegen": "Trade stamina regen (hours)",
+  "settings.rules.staminaRegenHint": "Game refreshes stamina every 24h (assumption)",
+  "settings.rules.maxStamina": "Max trade stamina",
+  "settings.rules.maxStaminaHint": "Caps the estimate; default 10",
   "settings.rules.exMode": "Unique ex counting",
   "settings.rules.exModeName": "Per card name (alt-art does not add)",
   "settings.rules.exModePrint": "Per printing (every alt-art counts)",
@@ -431,6 +462,9 @@ export const en = {
   "action.cancelled": "Transfer cancelled.",
   "action.account.saved": "Account saved.",
   "action.account.deleted": "Account deleted.",
+  "action.resources.saved": "Resources updated.",
+  "action.plan.applied": "{count} plans added to the ledger.",
+  "action.plan.none": "No new plans to add.",
   "action.settings.saved": "Rules saved.",
 
   "error.invalidInput": "Invalid input.",
@@ -458,6 +492,7 @@ export const en = {
   "error.transferClaimed": "Another request already processed this transfer.",
   "error.cannotCancel": "This transfer cannot be cancelled.",
   "error.accountHasHistory": "This account is used in transfer history. Cancel/archive those first.",
+  "error.accountNotFound": "Account not found.",
 
   "lang.en": "English",
   "lang.id": "Indonesia",

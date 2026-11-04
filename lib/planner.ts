@@ -2,6 +2,7 @@ import type { Account, Card } from "@/db/schema";
 import { exIdentity, tradeCost, transferMethod } from "./cards";
 import type { AppSettings } from "./settings";
 import { type CardMap, type HoldingsByAccount, type UsageTransfer, computeUsage, daysBetween, pairKey } from "./domain";
+import { estimateResources, staminaRegenPerDay } from "./resources";
 import { shiftDay } from "./game-day";
 
 export type PlanReason = "ex" | "trainer";
@@ -46,6 +47,8 @@ export type PlannerInput = {
   horizonDays?: number;
   /** Transfer sent/confirmed (kuota terpakai) dan planned (komitmen). */
   transfers?: PlannerTransfer[];
+  /** Waktu acuan estimasi stamina; default `new Date()`. */
+  now?: Date;
 };
 
 function cloneSim(holdings: HoldingsByAccount): Sim {
@@ -124,10 +127,21 @@ type DayBook = {
 
 export function buildPlan(input: PlannerInput): PlannerResult {
   const { accounts, cards, settings, today } = input;
+  const now = input.now ?? new Date();
   const horizon = input.horizonDays ?? settings.plannerHorizonDays;
   const sim = cloneSim(input.holdings);
   const lastTradePair = new Map<string, string>();
   const usageTransfers = input.transfers ?? [];
+
+  const stamina = new Map<string, number>();
+  const shinedust = new Map<string, number>();
+  for (const account of accounts) {
+    const resources = estimateResources(account, now, settings);
+    stamina.set(account.id, resources.stamina);
+    shinedust.set(account.id, resources.shinedust);
+  }
+  const staminaRegen = staminaRegenPerDay(settings);
+  const maxStamina = Math.max(1, settings.maxTradeStamina);
 
   for (const transfer of usageTransfers) {
     if (transfer.method !== "trade" || !transfer.gameDay) continue;
@@ -190,6 +204,21 @@ export function buildPlan(input: PlannerInput): PlannerResult {
       bump(book.trades, transfer.toAccountId);
       lastTradePair.set(pairKey(transfer.fromAccountId, transfer.toAccountId), day);
 
+      // Komitmen trade juga memesan stamina & Shinedust pemberi.
+      if (card) {
+        stamina.set(
+          transfer.fromAccountId,
+          Math.max(0, (stamina.get(transfer.fromAccountId) ?? 0) - 1),
+        );
+        shinedust.set(
+          transfer.fromAccountId,
+          Math.max(
+            0,
+            (shinedust.get(transfer.fromAccountId) ?? 0) - tradeCost(card, settings.tradeCosts),
+          ),
+        );
+      }
+
       const cardIn = transfer.cardInId ? cards.get(transfer.cardInId) : undefined;
       if (cardIn) {
         setQty(
@@ -248,12 +277,16 @@ export function buildPlan(input: PlannerInput): PlannerResult {
     setQty(sim, from.id, card.id, qtyOf(sim, from.id, card.id) - 1, fallbackTarget(card, settings));
     setQty(sim, to.id, card.id, qtyOf(sim, to.id, card.id) + 1, fallbackTarget(card, settings));
 
+    const cost = method === "trade" ? tradeCost(card, settings.tradeCosts) : 0;
+
     if (method === "share") {
       bump(book.receive, to.id);
       bump(book.sharePairs, pairKey(from.id, to.id));
     } else {
       bump(book.trades, from.id);
       bump(book.trades, to.id);
+      stamina.set(from.id, Math.max(0, (stamina.get(from.id) ?? 0) - 1));
+      shinedust.set(from.id, Math.max(0, (shinedust.get(from.id) ?? 0) - cost));
       if (tradeBack) {
         setQty(sim, to.id, tradeBack.id, qtyOf(sim, to.id, tradeBack.id) - 1, fallbackTarget(tradeBack, settings));
         setQty(sim, from.id, tradeBack.id, qtyOf(sim, from.id, tradeBack.id) + 1, fallbackTarget(tradeBack, settings));
@@ -269,7 +302,7 @@ export function buildPlan(input: PlannerInput): PlannerResult {
       to,
       method,
       tradeBack,
-      cost: method === "trade" ? tradeCost(card, settings.tradeCosts) : 0,
+      cost,
       reason,
     });
   };
@@ -295,7 +328,9 @@ export function buildPlan(input: PlannerInput): PlannerResult {
           ? sharePairFree(day, account.id, receiver.id)
           : tradeFree(day, account.id) &&
             tradeFree(day, receiver.id) &&
-            tradePairFree(day, account.id, receiver.id),
+            tradePairFree(day, account.id, receiver.id) &&
+            (stamina.get(account.id) ?? 0) >= 1 &&
+            (shinedust.get(account.id) ?? 0) >= tradeCost(card, settings.tradeCosts),
       )
       .sort((a, b) => {
         const spareA = qtyOf(sim, a.id, card.id) - targetOf(sim, a.id, card.id, fallbackTarget(card, settings));
@@ -338,6 +373,16 @@ export function buildPlan(input: PlannerInput): PlannerResult {
 
   for (let dayIndex = 0; dayIndex < horizon; dayIndex += 1) {
     const day = shiftDay(today, dayIndex);
+
+    // Regenerasi stamina di awal hari berikutnya (default +1 per 24 jam).
+    if (dayIndex > 0 && staminaRegen > 0) {
+      for (const account of accounts) {
+        stamina.set(
+          account.id,
+          Math.min(maxStamina, (stamina.get(account.id) ?? 0) + staminaRegen),
+        );
+      }
+    }
 
     // 1. Defisit ex lebih dulu, akun dengan kekurangan terbesar didahulukan.
     // Akun yang koleksinya belum dicatat tidak dijadwalkan (bukan berarti defisit).

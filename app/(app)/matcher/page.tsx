@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { createTransfer } from "@/app/actions";
+import { createTransfer, saveResources } from "@/app/actions";
 import { ActionButton } from "@/components/action-button";
+import { ActionForm } from "@/components/action-form";
 import { AccountPairPicker } from "@/components/account-pair-picker";
 import { MethodBadge, RarityChip, StatusBadge } from "@/components/badges";
 import { CardImage } from "@/components/card-image";
@@ -13,6 +14,7 @@ import { accountShortName, formatNumber } from "@/lib/format";
 import type { MessageKey } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
 import { loadLedger } from "@/lib/queries";
+import { estimateResources } from "@/lib/resources";
 
 const blockKeys: Record<CandidateBlock, MessageKey> = {
   receiveQuota: "matcher.block.receiveQuota",
@@ -21,6 +23,8 @@ const blockKeys: Record<CandidateBlock, MessageKey> = {
   tradeFromQuota: "matcher.block.tradeFromQuota",
   tradeToQuota: "matcher.block.tradeToQuota",
   noTradeBack: "matcher.block.noTradeBack",
+  noStamina: "matcher.block.noStamina",
+  noShinedust: "matcher.block.noShinedust",
 };
 
 export async function generateMetadata() {
@@ -65,6 +69,9 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
     accounts.find((account) => account.id !== receiver.id)!;
 
   const quota = quotaFor(sender.id, receiver.id, usage, settings);
+  const now = new Date();
+  const senderResources = estimateResources(sender, now, settings);
+  const receiverResources = estimateResources(receiver, now, settings);
   const candidates = buildCandidates({
     fromAccount: sender,
     toAccount: receiver,
@@ -72,6 +79,7 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
     holdings,
     settings,
     quota,
+    now,
   });
 
   const receiverSummary = ledger.summaries.find((summary) => summary.account.id === receiver.id);
@@ -107,7 +115,7 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
         <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-primary/5 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-secondary/5 blur-3xl" />
         <AccountPairPicker accounts={accounts} receiverId={receiver.id} senderId={sender.id} />
-        <div className="relative z-10 mt-3 grid grid-cols-2 gap-2 border-t border-white/[0.07] pt-3 sm:grid-cols-4">
+        <div className="relative z-10 mt-3 grid grid-cols-2 gap-2 border-t border-white/[0.07] pt-3 sm:grid-cols-3 xl:grid-cols-6">
           <QuotaPill
             label={t("matcher.quota.receive")}
             value={`${quota.receiveRemaining}/${settings.shareReceivePerDay}`}
@@ -127,6 +135,16 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
             label={t("matcher.quota.tradeTo")}
             value={`${quota.tradeToRemaining}/${settings.tradePerAccountPerDay}`}
             ok={quota.tradeToRemaining > 0 && !quota.tradePairBlocked}
+          />
+          <QuotaPill
+            label={t("matcher.quota.stamina")}
+            value={`${senderResources.stamina}/${settings.maxTradeStamina}`}
+            ok={senderResources.stamina > 0}
+          />
+          <QuotaPill
+            label={t("matcher.quota.shinedust")}
+            value={formatNumber(senderResources.shinedust, locale)}
+            ok={senderResources.shinedust > 0}
           />
         </div>
       </section>
@@ -201,7 +219,7 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
             />
           ) : (
             <div className="space-y-2.5">
-              {candidates.map((candidate) => {
+              {candidates.map((candidate, candidateIndex) => {
                 const senderState = holdingOf(holdings, sender.id, candidate.card.id);
                 const receiverState = holdingOf(holdings, receiver.id, candidate.card.id);
                 const cost = tradeCost(candidate.card, settings.tradeCosts);
@@ -225,6 +243,7 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
                         alt={candidate.card.name}
                         className="h-32 w-24 shrink-0 self-start"
                         sizes="96px"
+                        priority={candidateIndex === 0}
                       />
 
                       <div className="min-w-0 flex-1">
@@ -427,6 +446,76 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
             </ul>
             <p className="mt-2 border-t border-white/[0.07] pt-2 text-[11px] text-on-surface-variant">
               {t("matcher.quotaImpact.note")}
+            </p>
+          </section>
+
+          <section className="panel p-3">
+            <h2 className="flex items-center gap-2 font-display text-base text-on-surface">
+              <Icon name="bolt" className="h-4 w-4 text-secondary" />
+              {t("matcher.resources.title")}
+            </h2>
+            <p className="mt-1 text-[11px] text-on-surface-variant">
+              {t("matcher.resources.subtitle", { hours: settings.tradeStaminaRegenHours })}
+            </p>
+
+            <div className="mt-3 space-y-3">
+              {[
+                { account: sender, state: senderResources, role: t("matcher.sender.label") },
+                { account: receiver, state: receiverResources, role: t("matcher.receiver.label") },
+              ].map((entry) => (
+                <ActionForm
+                  key={entry.account.id}
+                  action={saveResources}
+                  submitLabel={t("matcher.resources.save")}
+                  submitIcon="check"
+                  compact
+                >
+                  <input type="hidden" name="accountId" value={entry.account.id} />
+                  <p className="mb-1 truncate font-display text-xs text-on-surface">
+                    {entry.account.name}
+                    <span className="ml-1 font-mono text-label-sm uppercase text-outline">
+                      {entry.role}
+                    </span>
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="text-[10px] uppercase tracking-wider text-outline">
+                      {t("matcher.resources.stamina")}
+                      <input
+                        name="stamina"
+                        type="number"
+                        min={0}
+                        max={99}
+                        defaultValue={entry.state.stamina}
+                        className="field mt-0.5 font-mono !py-1"
+                      />
+                      <span className="mt-0.5 block normal-case tracking-normal text-[10px] text-outline">
+                        {entry.state.hoursToNextStamina === null
+                          ? t("matcher.resources.max")
+                          : t("matcher.resources.next", { hours: entry.state.hoursToNextStamina })}
+                        {entry.state.regenSinceUpdate > 0
+                          ? ` · ${t("account.resourcesEstimated", { count: entry.state.regenSinceUpdate })}`
+                          : ""}
+                      </span>
+                    </label>
+                    <label className="text-[10px] uppercase tracking-wider text-outline">
+                      {t("matcher.resources.shinedust")}
+                      <input
+                        name="shinedust"
+                        type="number"
+                        min={0}
+                        max={9999999}
+                        step={100}
+                        defaultValue={entry.state.shinedust}
+                        className="field mt-0.5 font-mono !py-1"
+                      />
+                    </label>
+                  </div>
+                </ActionForm>
+              ))}
+            </div>
+
+            <p className="mt-2 border-t border-white/[0.07] pt-2 text-[11px] text-on-surface-variant">
+              {t("matcher.resources.note")}
             </p>
           </section>
 

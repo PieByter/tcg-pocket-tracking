@@ -96,6 +96,8 @@ export default async function SettingsPage() {
                   friendCode={account.friendCode ?? ""}
                   minEx={account.minEx}
                   notes={account.notes ?? ""}
+                  stamina={account.tradeStamina}
+                  shinedust={account.shinedust}
                 />
               </ActionForm>
             </div>
@@ -112,7 +114,16 @@ export default async function SettingsPage() {
               submitIcon="plus"
               resetOnSuccess
             >
-              <AccountFields t={t} name="" friendCode="" minEx={2} notes="" placeholder />
+              <AccountFields
+                t={t}
+                name=""
+                friendCode=""
+                minEx={2}
+                notes=""
+                stamina={0}
+                shinedust={0}
+                placeholder
+              />
             </ActionForm>
           </div>
         </div>
@@ -188,6 +199,22 @@ export default async function SettingsPage() {
                 min={1}
                 max={60}
               />
+              <NumberField
+                name="tradeStaminaRegenHours"
+                label={t("settings.rules.staminaRegen")}
+                defaultValue={settings.tradeStaminaRegenHours}
+                min={1}
+                max={168}
+                hint={t("settings.rules.staminaRegenHint")}
+              />
+              <NumberField
+                name="maxTradeStamina"
+                label={t("settings.rules.maxStamina")}
+                defaultValue={settings.maxTradeStamina}
+                min={1}
+                max={99}
+                hint={t("settings.rules.maxStaminaHint")}
+              />
               <label className="text-xs text-on-surface-variant">
                 {t("settings.rules.exMode")}
                 <select name="exCountMode" defaultValue={settings.exCountMode} className="field mt-1">
@@ -245,6 +272,8 @@ function AccountFields({
   friendCode,
   minEx,
   notes,
+  stamina,
+  shinedust,
   placeholder = false,
 }: {
   t: Translate;
@@ -252,53 +281,81 @@ function AccountFields({
   friendCode: string;
   minEx: number;
   notes: string;
+  stamina: number;
+  shinedust: number;
   placeholder?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-      <label className="text-xs text-on-surface-variant">
-        {t("settings.accounts.field.name")}
-        <input
-          name="name"
-          defaultValue={name}
-          placeholder={placeholder ? t("settings.accounts.namePlaceholder") : undefined}
-          className="field mt-1"
-          required
-          maxLength={60}
-        />
-      </label>
-      <label className="text-xs text-on-surface-variant">
-        {t("settings.accounts.field.friendCode")}
-        <input
-          name="friendCode"
-          defaultValue={friendCode}
-          placeholder="1234-5678-9012"
-          className="field mt-1 font-mono"
-          maxLength={30}
-        />
-      </label>
-      <label className="text-xs text-on-surface-variant">
-        {t("settings.accounts.field.minEx")}
-        <input
-          name="minEx"
-          type="number"
-          min={0}
-          max={20}
-          defaultValue={minEx}
-          className="field mt-1 font-mono"
-        />
-      </label>
-      <label className="text-xs text-on-surface-variant">
-        {t("settings.accounts.field.notes")}
-        <input
-          name="notes"
-          defaultValue={notes}
-          placeholder={t("common.optional")}
-          className="field mt-1"
-          maxLength={280}
-        />
-      </label>
-    </div>
+    <>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <label className="text-xs text-on-surface-variant">
+          {t("settings.accounts.field.name")}
+          <input
+            name="name"
+            defaultValue={name}
+            placeholder={placeholder ? t("settings.accounts.namePlaceholder") : undefined}
+            className="field mt-1"
+            required
+            maxLength={60}
+          />
+        </label>
+        <label className="text-xs text-on-surface-variant">
+          {t("settings.accounts.field.friendCode")}
+          <input
+            name="friendCode"
+            defaultValue={friendCode}
+            placeholder="1234-5678-9012"
+            className="field mt-1 font-mono"
+            maxLength={30}
+          />
+        </label>
+        <label className="text-xs text-on-surface-variant">
+          {t("settings.accounts.field.minEx")}
+          <input
+            name="minEx"
+            type="number"
+            min={0}
+            max={20}
+            defaultValue={minEx}
+            className="field mt-1 font-mono"
+          />
+        </label>
+        <label className="text-xs text-on-surface-variant">
+          {t("settings.accounts.field.notes")}
+          <input
+            name="notes"
+            defaultValue={notes}
+            placeholder={t("common.optional")}
+            className="field mt-1"
+            maxLength={280}
+          />
+        </label>
+        <label className="text-xs text-on-surface-variant">
+          {t("settings.accounts.field.stamina")}
+          <input
+            name="tradeStamina"
+            type="number"
+            min={0}
+            max={99}
+            defaultValue={stamina}
+            className="field mt-1 font-mono"
+          />
+        </label>
+        <label className="text-xs text-on-surface-variant">
+          {t("settings.accounts.field.shinedust")}
+          <input
+            name="shinedust"
+            type="number"
+            min={0}
+            max={9999999}
+            step={100}
+            defaultValue={shinedust}
+            className="field mt-1 font-mono"
+          />
+        </label>
+      </div>
+      <p className="mt-1 text-[10px] text-outline">{t("settings.accounts.field.resourcesHint")}</p>
+    </>
   );
 }
 

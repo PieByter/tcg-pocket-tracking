@@ -119,7 +119,7 @@ export function InventoryMatrix({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
+              {rows.map((row, rowIndex) => (
                 <tr key={row.card.id} className="border-b border-white/[0.05] transition hover:bg-primary/[0.04]">
                   <td className="sticky left-0 z-10 bg-surface-container-low/95 px-3 py-2 backdrop-blur">
                     <div className="flex items-center gap-2">
@@ -128,6 +128,7 @@ export function InventoryMatrix({
                         alt={row.card.name}
                         className="h-14 w-10 shrink-0"
                         sizes="40px"
+                        priority={rowIndex < 4}
                       />
                       <div className="min-w-0">
                         <p className="flex items-center gap-1.5 truncate text-sm text-on-surface">

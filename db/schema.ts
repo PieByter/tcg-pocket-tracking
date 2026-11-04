@@ -12,15 +12,27 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const accounts = pgTable("accounts", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  friendCode: text("friend_code"),
-  minEx: integer("min_ex").notNull().default(2),
-  sortOrder: integer("sort_order").notNull().default(0),
-  notes: text("notes"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const accounts = pgTable(
+  "accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    friendCode: text("friend_code"),
+    minEx: integer("min_ex").notNull().default(2),
+    sortOrder: integer("sort_order").notNull().default(0),
+    notes: text("notes"),
+    tradeStamina: integer("trade_stamina").notNull().default(0),
+    shinedust: integer("shinedust").notNull().default(0),
+    resourcesUpdatedAt: timestamp("resources_updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("accounts_stamina_non_negative", sql`${t.tradeStamina} >= 0`),
+    check("accounts_shinedust_non_negative", sql`${t.shinedust} >= 0`),
+  ],
+);
 
 export const cards = pgTable(
   "cards",
