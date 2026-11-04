@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"surface-container-lowest":"#0a0e18","tertiary-container":"#b395ff","primary-container":"#06b6d4","surface-container":"#1c1f2a","on-secondary-fixed-variant":"#653e00","on-secondary-container":"#5b3800","background":"#0f131d","on-primary-fixed-variant":"#004e5c","on-tertiary-container":"#4900ae","on-error-container":"#ffdad6","secondary-container":"#ee9800","inverse-on-surface":"#2c303b","on-tertiary-fixed":"#23005c","surface":"#0f131d","outline":"#869397","surface-tint":"#4cd7f6","tertiary-fixed":"#e9ddff","surface-dim":"#0f131d","inverse-surface":"#dfe2f1","on-primary-fixed":"#001f26","error":"#ffb4ab","secondary-fixed":"#ffddb8","on-tertiary":"#3c0091","on-surface":"#dfe2f1","error-container":"#93000a","on-surface-variant":"#bcc9cd","outline-variant":"#3d494c","surface-variant":"#313540","primary":"#4cd7f6","on-primary-container":"#00424f","secondary-fixed-dim":"#ffb95f","tertiary":"#d0bcff","surface-container-highest":"#313540","on-primary":"#003640","inverse-primary":"#00687a","on-background":"#dfe2f1","tertiary-fixed-dim":"#d0bcff","surface-bright":"#353944","secondary":"#ffb95f","surface-container-high":"#262a35","surface-container-low":"#171b26","on-secondary":"#472a00","on-tertiary-fixed-variant":"#5516be","on-secondary-fixed":"#2a1700","on-error":"#690005","primary-fixed":"#acedff","primary-fixed-dim":"#4cd7f6"},borderRadius:{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},spacing:{"space-xl":"2rem","space-lg":"1.25rem","space-sm":"0.5rem","gutter":"1rem","space-md":"0.75rem","gutter-lg":"1.5rem","space-xs":"0.25rem","margin":"1rem","margin-lg":"2.5rem","margin-md":"1.5rem"},fontFamily:{"headline-md":["Space Grotesk"],"body-md":["Geist"],"label-lg":["JetBrains Mono"],"body-sm":["Geist"],"label-sm":["JetBrains Mono"],"body-lg":["Geist"],"headline-lg-mobile":["Space Grotesk"],"headline-xl-mobile":["Space Grotesk"],"headline-lg":["Space Grotesk"],"headline-xl":["Space Grotesk"],"label-md":["JetBrains Mono"]},fontSize:{"headline-md":["22px",{"lineHeight":"28px","letterSpacing":"-0.01em","fontWeight":"600"}],"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"label-lg":["14px",{"lineHeight":"18px","letterSpacing":"0.02em","fontWeight":"600"}],"body-sm":["12px",{"lineHeight":"16px","fontWeight":"400"}],"label-sm":["10px",{"lineHeight":"14px","letterSpacing":"0.06em","fontWeight":"500"}],"body-lg":["16px",{"lineHeight":"24px","letterSpacing":"-0.05em","fontWeight":"400"}],"headline-lg-mobile":["24px",{"lineHeight":"32px","letterSpacing":"-0.01em","fontWeight":"600"}],"headline-xl-mobile":["30px",{"lineHeight":"36px","letterSpacing":"-0.02em","fontWeight":"700"}],"headline-lg":["32px",{"lineHeight":"40px","letterSpacing":"-0.02em","fontWeight":"600"}],"headline-xl":["40px",{"lineHeight":"48px","letterSpacing":"-0.03em","fontWeight":"700"}],"label-md":["12px",{"lineHeight":"16px","letterSpacing":"0.04em","fontWeight":"500"}]}}}};</script></head><body class="bg-surface font-body-md text-on-surface antialiased selection:bg-primary-container selection:text-on-primary-container"><aside class="fixed left-0 top-0 h-full w-72 bg-surface-container-lowest/95 backdrop-blur-xl z-50 flex flex-col justify-between shadow-[0_1px_8px_rgba(0,0,0,0.4)]"><div class="flex flex-col"><div class="h-20 px-space-lg flex items-center justify-between"><div class="flex items-center gap-space-sm"><img alt="PocketLedger Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBaLsrG8O0qAOE-rLeuRXq-WOKRRaDnV3yWaBYF2AMhiTRerPD89xvNni2ggSb5RqRM4AvjMIRW1-WmAva_1khQJxAzu_rbsxhV1bSnZCUhgB4e0xfmgZyHDHBZ-sY6Bva3yE6iIX-La7-qdp0QOHJJctcoVTJ5932aqybq-3MpbB3p1hS0dQJNAmp3UnvGI-IcWbuSa5gQ3FoUIiLyPPhiZwCv6kX9rHmk0wue5mw"/><div class="flex flex-col"><span class="font-headline-md text-headline-md tracking-tight text-on-surface">PocketLedger</span><span class="font-label-sm text-label-sm uppercase tracking-widest text-primary">Vault v2.4</span></div></div></div><div class="px-space-md py-space-xs"><div class="px-space-sm py-space-xs mb-space-xs font-label-sm text-label-sm uppercase tracking-wider text-outline">Core Navigation</div><nav class="flex flex-col gap-space-xs" data-active-classes="bg-surface-container-high text-primary font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"><a class="flex items-center gap-space-md px-space-md py-space-sm rounded-xl font-body-md text-body-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="dashboard" href="#"><span class="material-symbols-outlined text-primary">dashboard</span><span>Dashboard</span></a><a aria-current="page" class="flex items-center gap-space-md px-space-md py-space-sm rounded-xl transition-colors bg-surface-container-high text-primary font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" data-path="transfer-matcher" href="#"><span class="material-symbols-outlined text-tertiary">compare_arrows</span><span>Transfer Matcher</span></a><a class="flex items-center gap-space-md px-space-md py-space-sm rounded-xl font-body-md text-body-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="inventory-matrix" href="#"><span class="material-symbols-outlined text-secondary">grid_view</span><span>Inventory Matrix</span></a><a class="flex items-center gap-space-md px-space-md py-space-sm rounded-xl font-body-md text-body-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="daily-transfer-planner" href="#"><span class="material-symbols-outlined text-surface-tint">event_available</span><span>Daily Transfer Planner</span></a><a class="flex items-center gap-space-md px-space-md py-space-sm rounded-xl font-body-md text-body-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="settings-and-rules" href="#"><span class="material-symbols-outlined text-outline">tune</span><span>Settings &amp; Rules</span></a></nav></div></div><div class="p-space-md mx-space-md mb-space-md rounded-xl bg-surface-container-low flex flex-col gap-space-xs"><div class="flex items-center justify-between"><span class="font-label-sm text-label-sm text-outline uppercase">Multi-Sync State</span><span class="h-2 w-2 rounded-full bg-primary animate-pulse"></span></div><div class="flex items-center justify-between font-label-md text-label-md text-on-surface"><span>Accounts Locked</span><span class="text-primary font-bold">8 / 8 Active</span></div><div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden"><div class="bg-primary h-full w-full"></div></div></div></aside><div class="pl-72"><header class="fixed top-0 left-72 right-0 h-28 bg-surface-container-lowest/80 backdrop-blur-xl z-40 flex flex-col justify-between shadow-[0_1px_8px_rgba(0,0,0,0.25)]"><div class="h-16 w-full px-space-lg flex items-center justify-between"><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-sm px-space-md py-space-xs rounded-full bg-surface-container-high"><span class="material-symbols-outlined text-primary text-base">manage_accounts</span><span class="font-label-md text-label-md text-on-surface font-semibold">8 Akun Aktif</span><span class="font-label-sm text-label-sm text-primary px-space-xs py-0.5 rounded bg-primary/10">SYNCHRONIZED</span></div><div class="flex items-center gap-space-xs px-space-md py-space-xs rounded-full bg-surface-container-low font-label-md text-label-md text-secondary"><span class="material-symbols-outlined text-secondary text-base">schedule</span><span>Reset Hari:</span><span class="font-label-md text-label-md font-bold tracking-tight text-on-surface">04:22:15</span></div></div><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs px-space-sm py-space-xs rounded-lg bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm"><span class="material-symbols-outlined text-base">keyboard</span><span>⌘K Quick Jump</span></div><div class="h-6 w-px bg-surface-container-highest"></div><div class="flex items-center gap-space-sm"><div class="flex flex-col text-right hidden sm:flex"><span class="font-label-md text-label-md font-semibold text-on-surface">Pieter</span><span class="font-label-sm text-label-sm text-outline">Lead Collector</span></div><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwEb7figT7GB9pQY3UNp9SysVaRFiLoQ2_kdAXFGPqa16oSrz7Ua__xdmXbv1KSjQS1ahiAo90UOok_Gsed9J7t-c-H8op0ZyGCfpCbnTdOITOk1Aj2W-SzBh3S-jXr7Ne6B4M1L_AdkkiQjsZGQ6dVsCf4hf1RSKt4eTUL2k0cfvXG8TAWUi5fJfsTdCPEotBpOQN_hs8KFi9WTXGwow9o-TZ13fHKqrd67l3vIg"/></div></div></div><div class="h-12 w-full px-space-lg bg-surface-container-low/70 flex items-center justify-between overflow-x-auto"><div class="flex items-center gap-space-lg min-w-max"><div class="flex items-center gap-space-xs"><span class="h-2 w-2 rounded-full bg-primary"></span><span class="font-label-sm text-label-sm text-outline uppercase">Registry Status:</span><span class="font-label-md text-label-md text-on-surface font-semibold">8 Akun Terdaftar</span></div><div class="h-4 w-px bg-surface-container-highest"></div><div class="flex items-center gap-space-xs"><span class="h-2 w-2 rounded-full bg-secondary"></span><span class="font-label-sm text-label-sm text-outline uppercase">Alert:</span><span class="font-label-md text-label-md text-secondary font-semibold">3 Akun Defisit EX (&lt;2)</span></div><div class="h-4 w-px bg-surface-container-highest"></div><div class="flex items-center gap-space-xs"><span class="h-2 w-2 rounded-full bg-tertiary"></span><span class="font-label-sm text-label-sm text-outline uppercase">Kuota Share Hari Ini:</span><span class="font-label-md text-label-md text-tertiary font-semibold">5/8 Tersisa</span></div></div><div class="flex items-center gap-space-xs font-label-sm text-label-sm text-outline hidden md:flex"><span class="material-symbols-outlined text-sm">bolt</span><span>Instant Ledger Sync Engine</span></div></div></header><main class="w-full pt-28 bg-surface"><div class="flex flex-col w-full px-space-lg py-space-md gap-space-lg">
+<!-- Top Matcher Control Bar (F10) -->
+<section class="relative w-full rounded-xl bg-surface-container-low shadow-xl p-space-lg overflow-hidden">
+<div class="absolute -right-24 -top-24 w-80 h-80 rounded-full bg-primary/5 blur-3xl pointer-events-none"></div>
+<div class="absolute -left-24 -bottom-24 w-80 h-80 rounded-full bg-secondary/5 blur-3xl pointer-events-none"></div>
+<div class="relative z-10 flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-space-lg">
+<!-- Sisi Kiri: Akun Penerima (Defisit) -->
+<div class="flex-1 bg-surface-container-lowest/80 backdrop-blur-md rounded-xl p-space-md shadow-md flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-secondary text-base">arrow_downward</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary">Akun Penerima (Defisit)</span>
+</div>
+<span class="font-label-sm text-label-sm px-space-xs py-0.5 rounded-full bg-primary/10 text-primary">Sisa Kuota Terima: 1/1 Tersedia</span>
+</div>
+<div class="flex items-center gap-space-md mt-space-xs">
+<div class="h-10 w-10 rounded-lg bg-surface-container-high flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-xl">local_fire_department</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="relative">
+<button class="w-full flex items-center justify-between bg-surface-container-high px-space-md py-space-xs rounded-lg text-left text-on-surface hover:bg-surface-container-highest transition-colors" type="button">
+<div class="truncate">
+<span class="font-headline-md text-headline-md block text-on-surface leading-tight">Akun 6: Fire Core</span>
+<span class="font-label-sm text-label-sm text-error flex items-center gap-1">
+<span class="inline-block w-1.5 h-1.5 rounded-full bg-error"></span>
+                    Defisit 2 EX (Target: 2 per Deck)
+                  </span>
+</div>
+<span class="material-symbols-outlined text-outline">unfold_more</span>
+</button>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-space-xs text-on-surface-variant font-label-sm text-label-sm">
+<span>FC: 8492-1104-9921</span>
+<span class="text-outline">Status: Berteman ✓</span>
+</div>
+</div>
+<!-- Sisi Tengah: Vector Conduit & Status Method -->
+<div class="flex flex-col items-center justify-center px-space-md gap-space-xs text-center">
+<div class="flex items-center gap-space-xs">
+<div class="h-px w-8 bg-surface-variant hidden md:block"></div>
+<div class="relative p-space-sm rounded-full bg-surface-container-high shadow-lg text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-2xl animate-pulse">sync_alt</span>
+<div class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full"></div>
+</div>
+<div class="h-px w-8 bg-surface-variant hidden md:block"></div>
+</div>
+<span class="font-label-sm text-label-sm uppercase tracking-widest text-primary font-bold">Transfer Matcher</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant max-w-[160px]">Algoritma Auto-Balance Aktif</span>
+</div>
+<!-- Sisi Kanan: Akun Pemberi (Surplus) -->
+<div class="flex-1 bg-surface-container-lowest/80 backdrop-blur-md rounded-xl p-space-md shadow-md flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary text-base">arrow_upward</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-primary">Akun Pemberi (Surplus)</span>
+</div>
+<span class="font-label-sm text-label-sm px-space-xs py-0.5 rounded-full bg-surface-container-high text-on-surface-variant">Sisa Kirim: 1/1 | Stamina: 4/5</span>
+</div>
+<div class="flex items-center gap-space-md mt-space-xs">
+<div class="h-10 w-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-xl">shield_person</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="relative">
+<button class="w-full flex items-center justify-between bg-surface-container-high px-space-md py-space-xs rounded-lg text-left text-on-surface hover:bg-surface-container-highest transition-colors" type="button">
+<div class="truncate">
+<span class="font-headline-md text-headline-md block text-on-surface leading-tight">Akun 1: Pieter Prime</span>
+<span class="font-label-sm text-label-sm text-primary flex items-center gap-1">
+<span class="inline-block w-1.5 h-1.5 rounded-full bg-primary"></span>
+                    Surplus: 4 EX, 2 Trainer
+                  </span>
+</div>
+<span class="material-symbols-outlined text-outline">unfold_more</span>
+</button>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-space-xs text-on-surface-variant font-label-sm text-label-sm">
+<span>FC: 1042-9938-4412</span>
+<span class="text-tertiary">Inventory Lock: Verified</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Layout Utama Grid: Main Candidates & Execution Drawer -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-start">
+<!-- Panel Utama (8 Cols): Daftar Kandidat Kartu yang Memenuhi Syarat Transfer -->
+<section class="lg:col-span-8 flex flex-col gap-space-md">
+<!-- Sub-header & Filtering Indicator -->
+<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-sm bg-surface-container-lowest px-space-md py-space-sm rounded-xl">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary">filter_vintage</span>
+<div>
+<span class="font-headline-md text-headline-md text-on-surface block leading-snug">Kandidat Kartu Transfer Layak</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Memenuhi parameter F10 &amp; F11: Surplus &gt; Target &amp; Belum Dimiliki Akun 6</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs bg-surface-container px-space-sm py-1 rounded-full text-outline font-label-sm text-label-sm">
+<span>Filter: Semua Metode</span>
+<span class="text-primary font-bold">(4)</span>
+</div>
+</div>
+<!-- Candidate 1: Pikachu ex (Share) -->
+<div class="group relative rounded-xl bg-surface-container-low hover:bg-surface-container transition-all p-space-md shadow-md flex flex-col sm:flex-row items-center gap-space-md">
+<!-- Holographic specular edge simulation via CSS inside -->
+<div class="w-full sm:w-28 h-36 rounded-lg bg-surface-container-highest flex-shrink-0 relative overflow-hidden shadow-lg group-hover:shadow-[0_0_24px_-4px_rgba(76,215,246,0.3)] transition-shadow">
+<img class="w-full h-full object-cover" data-alt="Holographic ultra rare Pikachu ex electric lightning card foil from Pokemon TCG Pocket, vivid yellow energy sparks on a deep obsidian slate background, hyper-detailed collector art with metallic foil gloss" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD27WqAQdxyr8kH28CiUyPn0nMrpozJjnd79_HPyrZx_S9OCv0dIqnlHpNqj67FdGpf0K4ONv7ha_2zfyay9nyEvaemo9FOg3C2WeoByFcrEuPOP61GHReFlYaQcxb8TtjTCCwdv8tskJAIrh-q5Dj8YhXo9flvQXV2aQjLeARXJILtPm4wD2Y-oZ0KOAU1j9NzIYXi-bsZsjrjO2VOnW1fuTj8Vtw6QBx1DZhs1mY"/>
+<div class="absolute top-1 left-1 bg-surface-container-lowest/90 backdrop-blur-sm px-1.5 py-0.5 rounded text-primary font-label-sm text-label-sm flex items-center gap-0.5">
+<span>4◇</span>
+</div>
+<div class="absolute bottom-1 right-1 bg-surface-container-lowest/90 backdrop-blur-sm px-1 py-0.5 rounded text-secondary font-label-sm text-label-sm">
+            #096
+          </div>
+</div>
+<div class="flex-1 flex flex-col justify-between w-full h-full gap-space-xs">
+<div class="flex items-start justify-between">
+<div>
+<div class="flex items-center gap-space-sm">
+<span class="font-headline-md text-headline-md text-on-surface">Pikachu ex</span>
+<span class="px-space-xs py-0.5 rounded bg-primary/20 text-primary font-label-sm text-label-sm uppercase tracking-wide">METODE: SHARE</span>
+<span class="px-space-xs py-0.5 rounded bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm">1-Arah (Gratis)</span>
+</div>
+<span class="font-label-md text-label-md text-outline">Set A1 - Genetic Apex · Electric / Lightning</span>
+</div>
+<div class="text-right">
+<span class="font-label-sm text-label-sm text-primary uppercase block">Rekomendasi Utama</span>
+<span class="font-label-md text-label-md text-on-surface font-bold">Defisit Match</span>
+</div>
+</div>
+<!-- Inventory Status Breakdown -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-space-xs bg-surface-container-lowest/70 p-space-xs rounded-lg font-label-sm text-label-sm mt-space-xs">
+<div class="flex flex-col">
+<span class="text-outline">Pieter Prime</span>
+<span class="text-on-surface font-semibold">Qty: 3 <span class="text-primary">(Surplus +2)</span></span>
+</div>
+<div class="flex flex-col">
+<span class="text-outline">Akun 6</span>
+<span class="text-secondary font-semibold">Qty: 0 (Butuh!)</span>
+</div>
+<div class="flex flex-col">
+<span class="text-outline">Biaya Transfer</span>
+<span class="text-on-surface font-semibold">0 Stamina / 0 Dust</span>
+</div>
+<div class="flex flex-col">
+<span class="text-outline">Estimasi Selesai</span>
+<span class="text-on-surface font-semibold">Hari Ini (Reset Siang)</span>
+</div>
+</div>
+<div class="flex items-center justify-between pt-space-xs">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Memenuhi kuota share harian. Tidak mengurangi deck aktif Pieter Prime.</span>
+<button class="px-space-md py-space-xs rounded-xl bg-primary text-on-primary font-label-md text-label-md font-bold hover:brightness-110 active:scale-95 transition-all shadow-md flex items-center gap-1" type="button">
+<span>Pilih untuk Share</span>
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Candidate 2: Mewtwo ex (Share) -->
+<div class="group relative rounded-xl bg-surface-container-low hover:bg-surface-container transition-all p-space-md shadow-md flex flex-col sm:flex-row items-center gap-space-md">
+<div class="w-full sm:w-28 h-36 rounded-lg bg-surface-container-highest flex-shrink-0 relative overflow-hidden shadow-lg group-hover:shadow-[0_0_24px_-4px_rgba(208,188,255,0.3)] transition-shadow">
+<img class="w-full h-full object-cover" data-alt="Holographic psychic Mewtwo ex card illustration from Pokemon TCG Pocket, chromatic purple and ultraviolet glow reflections with iridescent card borders on dark tactical background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQh1b3NsEa_aF8JAV7Re5j6osDOpS6HKS9kpCLPNGNSCc_oHHH7q9gtjOBETuomRIWOhRUCeSi_RDmaM2iiu88q6qix9b-2w3MNzMr5fAuAP0vwVSmgUYBeTsQiFYuc6LmkmrUptqImixul0W91L1doXpagft5Bxrd-uHfh_QDeU7-lbjgKaCxWukmRXb6XeuUwfaYNK1QQzzwUoUZKHjKg_a02TWWaDOly0w0CJA"/>
+<div class="absolute top-1 left-1 bg-surface-container-lowest/90 backdrop-blur-sm px-1.5 py-0.5 rounded text-tertiary font-label-sm text-label-sm flex items-center gap-0.5">
+<span>4◇</span>
+</div>
+<div class="absolute bottom-1 right-1 bg-surface-container-lowest/90 backdrop-blur-sm px-1 py-0.5 rounded text-secondary font-label-sm text-label-sm">
+            #129
+          </div>
+</div>
+<div class="flex-1 flex flex-col justify-between w-full h-full gap-space-xs">
+<div class="flex items-start justify-between">
+<div>
+<div class="flex items-center gap-space-sm">
+<span class="font-headline-md text-headline-md text-on-surface">Mewtwo ex</span>
+<span class="px-space-xs py-0.5 rounded bg-primary/20 text-primary font-label-sm text-label-sm uppercase tracking-wide">METODE: SHARE</span>
+</div>
+<span class="font-label-md text-label-md text-outline">Set A1 - Genetic Apex · Psychic</span>
+</div>
+<div class="text-right">
+<span class="font-label-sm text-label-sm text-outline uppercase block">Stok Pieter Prime</span>
+<span class="font-label-md text-label-md text-tertiary font-bold">Surplus +1</span>
+</div>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-space-xs bg-surface-container-lowest/70 p-space-xs rounded-lg font-label-sm text-label-sm mt-space-xs">
+<div class="flex flex-col">
+<span class="text-outline">Pieter Prime</span>
+<span class="text-on-surface font-semibold">Qty: 2 (Aman)</span>
+</div>
+<div class="flex flex-col">
+<span class="text-outline">Akun 6</span>
+<span class="text-secondary font-semibold">Qty: 0 (Butuh)</span>
+</div>
+<div class="flex flex-col">
+<span class="text-outline">Biaya Transfer</span>
+<span class="text-on-surface font-semibold">0 Biaya</span>
+</div>
+<div class="flex flex-col">
+<span class="text-outline">Alternatif</span>
+<span class="text-on-surface font-semibold">Queue Slot 2</span>
+</div>
+</div>
+<div class="flex items-center justify-between pt-space-xs">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Optimal untuk diversifikasi deck gardevoir-psychic di Akun 6.</span>
+<button class="px-space-md py-space-xs rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-md text-label-md font-semibold transition-all shadow-sm flex items-center gap-1" type="button">
+<span>Pilih untuk Share</span>
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Candidate 3: Charizard ex Full Art (Trade Mode - Tukar Sepadan) -->
+<div class="group relative rounded-xl bg-surface-container-low hover:bg-surface-container transition-all p-space-md shadow-md flex flex-col gap-space-sm">
+<div class="flex flex-col sm:flex-row items-center gap-space-md">
+<div class="w-full sm:w-28 h-36 rounded-lg bg-surface-container-highest flex-shrink-0 relative overflow-hidden shadow-lg group-hover:shadow-[0_0_24px_-4px_rgba(255,185,95,0.4)] transition-shadow">
+<img class="w-full h-full object-cover" data-alt="Holographic Charizard ex Full Art special illustration card from Pokemon TCG Pocket with intense fire flames, chromatic rainbow prism borders, high dynamic range digital fantasy collectible art" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBCDaEzGDFt5JVJvzi9HmLuDsb4UD47-sr6cFB0uxwoQae1U5r_1Y27PSykr0LNOrx9wWfUGFORM7wdUOGet-hllCiHMAlAIg-YPnAvHl3oPdWcORa0Q9KJaB5ZqXf7U7xJHrvL-EHIvuktPvBhmRBiRLt6WbfE69FqMWoXWvT2kMmF41NEOqDelslgSfVNMLt348tJ0i7bHAI7PDeXaJSdDKJ_7my9lhdO5V7LiVQ"/>
+<div class="absolute top-1 left-1 bg-surface-container-lowest/90 backdrop-blur-sm px-1.5 py-0.5 rounded text-secondary font-label-sm text-label-sm flex items-center gap-0.5">
+<span>2★</span>
+</div>
+<div class="absolute bottom-1 right-1 bg-surface-container-lowest/90 backdrop-blur-sm px-1 py-0.5 rounded text-outline font-label-sm text-label-sm">
+              #268
+            </div>
+</div>
+<div class="flex-1 flex flex-col justify-between w-full h-full gap-space-xs">
+<div class="flex items-start justify-between">
+<div>
+<div class="flex items-center gap-space-sm">
+<span class="font-headline-md text-headline-md text-on-surface">Charizard ex Full Art</span>
+<span class="px-space-xs py-0.5 rounded bg-secondary/20 text-secondary font-label-sm text-label-sm uppercase tracking-wide">METODE: TRADE (TUKAR SEPADAN)</span>
+</div>
+<span class="font-label-md text-label-md text-outline">Set A1 - Genetic Apex · Fire Rare 2-Star</span>
+</div>
+<div class="text-right">
+<span class="font-label-sm text-label-sm text-secondary uppercase block">Rarity Match Required</span>
+<span class="font-label-md text-label-md text-on-surface font-bold">2★ ⇄ 2★</span>
+</div>
+</div>
+<!-- Requirement Warning -->
+<div class="bg-secondary-container/20 text-secondary p-space-xs rounded-lg font-label-sm text-label-sm flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-base">info</span>
+<span>Aturan Game Bagian 4: Perlu kartu timbal balik 2★ dari Akun 6 + Biaya 500 Shinedust &amp; 1 Trade Stamina.</span>
+</div>
+<!-- Smart Suggestion Exchange UI Component -->
+<div class="flex flex-col sm:flex-row items-center justify-between gap-space-sm bg-surface-container-lowest/80 p-space-xs rounded-lg mt-space-xs">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary text-base">auto_awesome</span>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline">Saran Penukar Otomatis dari Akun 6:</span>
+<span class="font-label-md text-label-md text-on-surface font-semibold">Marowak ex 2★ (Duplikat Qty 2)</span>
+</div>
+</div>
+<button class="px-space-md py-space-xs rounded-xl bg-secondary text-on-secondary font-label-md text-label-md font-bold hover:brightness-110 active:scale-95 transition-all shadow-md flex items-center gap-1" type="button">
+<span>Siapkan Trade 2★</span>
+<span class="material-symbols-outlined text-sm">sync</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Candidate 4: Sabrina (Trainer 2◇) -->
+<div class="group relative rounded-xl bg-surface-container-low hover:bg-surface-container transition-all p-space-md shadow-md flex flex-col sm:flex-row items-center gap-space-md">
+<div class="w-full sm:w-28 h-36 rounded-lg bg-surface-container-highest flex-shrink-0 relative overflow-hidden shadow-lg group-hover:shadow-[0_0_24px_-4px_rgba(76,215,246,0.2)] transition-shadow">
+<img class="w-full h-full object-cover" data-alt="Holographic Trainer card Sabrina psychic gym leader from Pokemon TCG Pocket, elegant character artwork with holographic prismatic foil gradient sheen over dark tech background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1ySIhMA88BWKX4QkmG8XhhYO0WH1AXcJVJh8ep47b5MqAg895iufnkGcJLC337yuAD7fv8i0l8HtyCZU3GzbmAfjsVZTeWADq9CqsrdJ4p1LeBLYaox73jWG9LAawA7WeNAo97hY7rPXRPgk7yWyp7amBXEt4RSc5UlOE5xk973tVYG9iuxzoGECzORzeZWDgJ_8sHOLUWjBLgYuI2Lr1cNl0V_azzufvkNhZv4M"/>
+<div class="absolute top-1 left-1 bg-surface-container-lowest/90 backdrop-blur-sm px-1.5 py-0.5 rounded text-primary font-label-sm text-label-sm flex items-center gap-0.5">
+<span>2◇</span>
+</div>
+<div class="absolute bottom-1 right-1 bg-surface-container-lowest/90 backdrop-blur-sm px-1 py-0.5 rounded text-outline font-label-sm text-label-sm">
+            #198
+          </div>
+</div>
+<div class="flex-1 flex flex-col justify-between w-full h-full gap-space-xs">
+<div class="flex items-start justify-between">
+<div>
+<div class="flex items-center gap-space-sm">
+<span class="font-headline-md text-headline-md text-on-surface">Sabrina</span>
+<span class="px-space-xs py-0.5 rounded bg-primary/20 text-primary font-label-sm text-label-sm uppercase tracking-wide">METODE: SHARE</span>
+<span class="px-space-xs py-0.5 rounded bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm">Meta Staple</span>
+</div>
+<span class="font-label-md text-label-md text-outline">Set A1 - Genetic Apex · Trainer Supporter</span>
+</div>
+<div class="text-right">
+<span class="font-label-sm text-label-sm text-outline uppercase block">Surplus Pieter Prime</span>
+<span class="font-label-md text-label-md text-primary font-bold">+2 Qty</span>
+</div>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-space-xs bg-surface-container-lowest/70 p-space-xs rounded-lg font-label-sm text-label-sm mt-space-xs">
+<div class="flex flex-col">
+<span class="text-outline">Pieter Prime</span>
+<span class="text-on-surface font-semibold">Qty: 4 (Max 2)</span>
+</div>
+<div class="flex flex-col">
+<span class="text-outline">Akun 6</span>
+<span class="text-secondary font-semibold">Qty: 0 (Butuh 2)</span>
+</div>
+<div class="flex flex-col">
+<span class="text-outline">Biaya</span>
+<span class="text-on-surface font-semibold">0 Biaya</span>
+</div>
+<div class="flex flex-col">
+<span class="text-outline">Prioritas</span>
+<span class="text-on-surface font-semibold">Tinggi (Disruption)</span>
+</div>
+</div>
+<div class="flex items-center justify-between pt-space-xs">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Kartu supporter paling esensial untuk mengunci posisi bench lawan.</span>
+<button class="px-space-md py-space-xs rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-md text-label-md font-semibold transition-all shadow-sm flex items-center gap-1" type="button">
+<span>Pilih untuk Share</span>
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Panel Kanan / Sidebar Drawer (4 Cols): Transfer Execution Plan & Daily Quota Preview -->
+<aside class="lg:col-span-4 flex flex-col gap-space-md sticky top-32">
+<!-- Drawer Card -->
+<div class="bg-surface-container-low rounded-xl p-space-lg shadow-xl flex flex-col gap-space-md relative overflow-hidden">
+<!-- Header Rencana -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary">assignment</span>
+<span class="font-headline-md text-headline-md text-on-surface">Execution Plan</span>
+</div>
+<span class="px-space-xs py-0.5 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm">PLANNED DRAFT</span>
+</div>
+<!-- Selected Item Card Preview -->
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-md flex flex-col gap-space-xs">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Transfer Terpilih</span>
+<div class="flex items-center gap-space-md mt-space-xs">
+<div class="h-16 w-12 rounded bg-surface-container-high overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="Miniature artwork thumbnail of Pikachu ex lightning card Pokemon TCG Pocket" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZ4KIWgvoI-2d2I3vqp0nyIUqEJz-mLTaL5cD_OvaumNlPMF8Z0hoFNcczwGWutzwKtOK9yiDffvWHj4hBZbcvLeu9B4CmxX-rL7pJIEFUAz0-fz03YA1dP0xlWYSDQdkWwr-7physxqP7-WNX6KYtrtQiAEW5Y4szTpqqcrI2RJsBhX9aNQrVGwIUu9X0hFZyKsHoqKXjRBWLHbnRtzPnPK-WE_TrnpcyOFHXW2c"/>
+</div>
+<div class="flex-1 min-w-0">
+<span class="font-headline-md text-headline-md text-on-surface truncate block">Pikachu ex 4◇</span>
+<span class="font-label-sm text-label-sm text-primary">Metode: Share (1-Arah)</span>
+<div class="flex items-center gap-space-xs mt-0.5 text-on-surface-variant font-label-sm text-label-sm">
+<span>Pieter Prime</span>
+<span class="material-symbols-outlined text-xs">arrow_forward</span>
+<span class="text-secondary font-semibold">Fire Core</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Flow 3-Tahap (Kebutuhan F12) -->
+<div class="flex flex-col gap-space-xs">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Tahapan Validasi Sesuai Aturan</span>
+<div class="space-y-space-xs mt-space-xs">
+<!-- Tahap 1: Planned di App -->
+<div class="flex items-start gap-space-sm p-space-sm rounded-lg bg-primary/10">
+<div class="h-6 w-6 rounded-full bg-primary text-on-primary flex items-center justify-center font-label-sm text-label-sm font-bold flex-shrink-0 mt-0.5">
+                1
+              </div>
+<div class="flex-1">
+<span class="font-label-md text-label-md text-primary font-semibold block">Planned di PocketLedger</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Slot kuota harian dikunci sementara agar tidak bentrok dengan akun lain.</span>
+</div>
+</div>
+<!-- Tahap 2: Eksekusi di Game -->
+<div class="flex items-start gap-space-sm p-space-sm rounded-lg bg-surface-container-lowest/60">
+<div class="h-6 w-6 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center font-label-sm text-label-sm font-bold flex-shrink-0 mt-0.5">
+                2
+              </div>
+<div class="flex-1">
+<span class="font-label-md text-label-md text-on-surface font-semibold block">Eksekusi di Pokémon TCG Pocket</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Buka menu Social &gt; Friends &gt; Kirim Kartu / Trade sesuai instruksi ledger.</span>
+</div>
+</div>
+<!-- Tahap 3: Confirm Transfer -->
+<div class="flex items-start gap-space-sm p-space-sm rounded-lg bg-surface-container-lowest/60">
+<div class="h-6 w-6 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center font-label-sm text-label-sm font-bold flex-shrink-0 mt-0.5">
+                3
+              </div>
+<div class="flex-1">
+<span class="font-label-md text-label-md text-on-surface font-semibold block">Confirm Transfer di App</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Setelah kartu diterima, klik konfirmasi untuk memperbarui database 8 akun.</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Quota Preview Progress -->
+<div class="bg-surface-container-lowest p-space-md rounded-xl flex flex-col gap-space-xs font-label-sm text-label-sm">
+<div class="flex justify-between text-outline">
+<span>Dampak Kuota Share Hari Ini:</span>
+<span class="text-on-surface font-bold">5/8 -&gt; 4/8 Tersisa</span>
+</div>
+<div class="w-full bg-surface-container h-2 rounded-full overflow-hidden">
+<div class="bg-tertiary h-full w-1/2"></div>
+</div>
+<span class="text-tertiary pt-1">Reset kuota otomatis dalam: 04:22:15</span>
+</div>
+<!-- Friend Code Warning Callout -->
+<div class="bg-surface-container p-space-sm rounded-lg flex items-start gap-space-xs">
+<span class="material-symbols-outlined text-secondary text-lg flex-shrink-0 mt-0.5">verified_user</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+<strong class="text-on-surface">Validasi Pertemanan:</strong> Pastikan Akun 1 &amp; Akun 6 sudah berteman di Pokémon TCG Pocket sebelum mengeksekusi transfer game.
+          </p>
+</div>
+<!-- Action Button -->
+<div class="flex flex-col gap-space-xs pt-space-xs">
+<button class="w-full py-space-md rounded-xl bg-primary text-on-primary font-headline-md text-headline-md tracking-tight font-bold hover:brightness-110 active:scale-[0.98] transition-all shadow-lg flex items-center justify-center gap-space-sm" type="button">
+<span class="material-symbols-outlined text-xl">bookmark_add</span>
+<span>Buat Rencana Transfer (Planned)</span>
+</button>
+<button class="w-full py-space-xs rounded-lg text-outline hover:text-on-surface font-label-md text-label-md transition-colors text-center" type="button">
+            Batal &amp; Pilih Ulang Akun
+          </button>
+</div>
+</div>
+<!-- Quick Metrics Insight Box -->
+<div class="bg-surface-container-low rounded-xl p-space-md shadow-md flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary text-2xl">insights</span>
+<div class="flex flex-col">
+<span class="font-headline-md text-headline-md text-on-surface">Efisiensi Rencana: 100%</span>
+<span class="font-body-sm text-body-sm text-outline">Menghapus 1 status defisit tanpa biaya token stamina</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline">trending_up</span>
+</div>
+</aside>
+</div>
+</div></main></div></body></html>
