@@ -8,6 +8,7 @@ export const NAV_ITEMS: { href: string; labelKey: MessageKey; shortKey: MessageK
   { href: "/inventory", labelKey: "nav.inventory", shortKey: "nav.short.inventory", icon: "matrix" },
   { href: "/planner", labelKey: "nav.planner", shortKey: "nav.short.planner", icon: "planner" },
   { href: "/transfers", labelKey: "nav.transfers", shortKey: "nav.short.transfers", icon: "repeat" },
+  { href: "/data", labelKey: "nav.data", shortKey: "nav.short.data", icon: "database" },
   { href: "/settings", labelKey: "nav.settings", shortKey: "nav.short.settings", icon: "settings" },
 ];
 

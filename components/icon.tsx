@@ -26,7 +26,9 @@ export type IconName =
   | "package"
   | "repeat"
   | "external"
-  | "bolt";
+  | "bolt"
+  | "database"
+  | "download";
 
 const paths: Record<IconName, ReactNode> = {
   dashboard: (
@@ -133,6 +135,19 @@ const paths: Record<IconName, ReactNode> = {
     </>
   ),
   bolt: <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" />,
+  database: (
+    <>
+      <ellipse cx="12" cy="6" rx="8" ry="3" />
+      <path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6" />
+      <path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" />
+    </>
+  ),
+  download: (
+    <>
+      <path d="M12 4v11M7.5 10.5 12 15l4.5-4.5" />
+      <path d="M4 17.5V19a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 20 19v-1.5" />
+    </>
+  ),
 };
 
 export function Icon({

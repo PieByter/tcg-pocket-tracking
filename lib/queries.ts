@@ -218,3 +218,19 @@ export async function catalogCardCount(): Promise<number> {
   const rows = await db.select({ total: sql<number>`count(*)::int` }).from(cardsTable);
   return rows[0]?.total ?? 0;
 }
+
+export type DataStats = { accounts: number; holdings: number; transfers: number };
+
+export async function loadDataStats(): Promise<DataStats> {
+  const db = await getDb();
+  const [accountRows, holdingRows, transferRows] = await Promise.all([
+    db.select({ total: sql<number>`count(*)::int` }).from(accountsTable),
+    db.select({ total: sql<number>`count(*)::int` }).from(holdingsTable),
+    db.select({ total: sql<number>`count(*)::int` }).from(transfersTable),
+  ]);
+  return {
+    accounts: accountRows[0]?.total ?? 0,
+    holdings: holdingRows[0]?.total ?? 0,
+    transfers: transferRows[0]?.total ?? 0,
+  };
+}

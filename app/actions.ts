@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -23,6 +23,7 @@ import { CONFIG_KEYS, parseSettings } from "@/lib/settings";
 import { SESSION_COOKIE, createSessionToken } from "@/lib/session";
 import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, type MessageKey } from "@/lib/i18n";
 import { buildPlan } from "@/lib/planner";
+import { parseCollection, type ImportIssue, type ImportMode, type ImportRow } from "@/lib/import";
 import { loadLedger } from "@/lib/queries";
 
 export type ActionResult = {
@@ -646,6 +647,228 @@ export async function applyPlan(formData: FormData): Promise<ActionResult> {
     return { ok: true, key: "action.plan.applied", params: { count: values.length } };
   } catch (error) {
     return toResult(error);
+  }
+}
+
+export type ImportIssueReport = {
+  line: number;
+  key: MessageKey;
+  params?: Record<string, string | number>;
+};
+
+export type ImportReport = {
+  ok: boolean;
+  key: MessageKey;
+  params?: Record<string, string | number>;
+  issues: ImportIssueReport[];
+  issueTotal: number;
+};
+
+type PreparedImport = {
+  mode: ImportMode;
+  rows: ImportRow[];
+  issues: ImportIssue[];
+  issueTotal: number;
+  created: number;
+  updated: number;
+  unchanged: number;
+  withTarget: { accountId: string; cardId: string; qty: number; targetQty: number }[];
+  withoutTarget: { accountId: string; cardId: string; qty: number }[];
+};
+
+const IMPORT_CHUNK = 400;
+
+async function existingHoldings(
+  db: Db,
+  rows: ImportRow[],
+): Promise<Map<string, { qty: number; targetQty: number }>> {
+  const map = new Map<string, { qty: number; targetQty: number }>();
+  const accountIds = [...new Set(rows.map((row) => row.accountId))];
+  const cardIds = [...new Set(rows.map((row) => row.cardId))];
+  if (accountIds.length === 0 || cardIds.length === 0) return map;
+
+  for (let index = 0; index < cardIds.length; index += 500) {
+    const chunk = cardIds.slice(index, index + 500);
+    const found = await db
+      .select({
+        accountId: holdings.accountId,
+        cardId: holdings.cardId,
+        qty: holdings.qty,
+        targetQty: holdings.targetQty,
+      })
+      .from(holdings)
+      .where(and(inArray(holdings.accountId, accountIds), inArray(holdings.cardId, chunk)));
+    for (const row of found) {
+      map.set(`${row.accountId}|${row.cardId}`, { qty: row.qty, targetQty: row.targetQty });
+    }
+  }
+
+  return map;
+}
+
+async function prepareImport(formData: FormData): Promise<PreparedImport> {
+  const payload = String(formData.get("payload") ?? "");
+  const mode: ImportMode = String(formData.get("mode") ?? "set") === "add" ? "add" : "set";
+
+  const db = await getDb();
+  const [accountRows, cardRows, settings] = await Promise.all([
+    db
+      .select({ id: accounts.id, name: accounts.name, sortOrder: accounts.sortOrder })
+      .from(accounts)
+      .orderBy(asc(accounts.sortOrder)),
+    db
+      .select({
+        id: cardsTable.id,
+        setCode: cardsTable.setCode,
+        number: cardsTable.number,
+        name: cardsTable.name,
+        kind: cardsTable.kind,
+      })
+      .from(cardsTable),
+    getSettings(),
+  ]);
+
+  const parsed = parseCollection(payload, accountRows, cardRows, mode);
+  const existing = await existingHoldings(db, parsed.rows);
+  const cardById = new Map(cardRows.map((card) => [card.id, card]));
+
+  const prepared: PreparedImport = {
+    mode,
+    rows: parsed.rows,
+    issues: parsed.issues,
+    issueTotal: parsed.issueTotal,
+    created: 0,
+    updated: 0,
+    unchanged: 0,
+    withTarget: [],
+    withoutTarget: [],
+  };
+
+  for (const row of parsed.rows) {
+    const current = existing.get(`${row.accountId}|${row.cardId}`);
+    const card = cardById.get(row.cardId);
+    const defaultQty = card ? defaultTarget(card, settings) : 0;
+
+    if (!current) {
+      prepared.created += 1;
+      prepared.withTarget.push({
+        accountId: row.accountId,
+        cardId: row.cardId,
+        qty: row.qty,
+        targetQty: row.targetQty ?? defaultQty,
+      });
+      continue;
+    }
+
+    const nextQty = mode === "add" ? Math.min(99, current.qty + row.qty) : row.qty;
+    const nextTarget = row.targetQty ?? current.targetQty;
+
+    if (nextQty === current.qty && nextTarget === current.targetQty) {
+      prepared.unchanged += 1;
+      continue;
+    }
+
+    prepared.updated += 1;
+    // Mode "add" mengirim delta saja: penjumlahan dengan nilai lama dilakukan di SQL.
+    const writeQty = mode === "add" ? row.qty : nextQty;
+    if (row.targetQty === undefined) {
+      prepared.withoutTarget.push({ accountId: row.accountId, cardId: row.cardId, qty: writeQty });
+    } else {
+      prepared.withTarget.push({
+        accountId: row.accountId,
+        cardId: row.cardId,
+        qty: writeQty,
+        targetQty: nextTarget,
+      });
+    }
+  }
+
+  return prepared;
+}
+
+function report(prepared: PreparedImport, ok: boolean, key: MessageKey): ImportReport {
+  return {
+    ok,
+    key,
+    params: {
+      rows: prepared.rows.length,
+      created: prepared.created,
+      updated: prepared.updated,
+      unchanged: prepared.unchanged,
+    },
+    issues: prepared.issues.map((issue) => ({ line: issue.line, key: issue.key, params: issue.params })),
+    issueTotal: prepared.issueTotal,
+  };
+}
+
+export async function previewImport(formData: FormData): Promise<ImportReport> {
+  try {
+    if (!String(formData.get("payload") ?? "").trim()) {
+      return { ok: false, key: "import.error.empty", issues: [], issueTotal: 0 };
+    }
+    const prepared = await prepareImport(formData);
+    if (prepared.issueTotal > 0) return report(prepared, false, "import.needsFix");
+    if (prepared.rows.length === 0) {
+      return { ok: false, key: "import.error.empty", issues: [], issueTotal: 0 };
+    }
+    return report(prepared, true, "import.previewed");
+  } catch (error) {
+    const result = toResult(error);
+    return { ...result, issues: [], issueTotal: 0 };
+  }
+}
+
+export async function applyImport(formData: FormData): Promise<ImportReport> {
+  try {
+    if (!String(formData.get("payload") ?? "").trim()) {
+      return { ok: false, key: "import.error.empty", issues: [], issueTotal: 0 };
+    }
+    const prepared = await prepareImport(formData);
+    if (prepared.issueTotal > 0) return report(prepared, false, "import.needsFix");
+    if (prepared.rows.length === 0) {
+      return { ok: false, key: "import.error.empty", issues: [], issueTotal: 0 };
+    }
+
+    const db = await getDb();
+    const adding = prepared.mode === "add";
+    const quantity = adding
+      ? sql`least(99, ${holdings.qty} + excluded.qty)`
+      : sql`excluded.qty`;
+
+    await db.transaction(async (tx) => {
+      for (let index = 0; index < prepared.withoutTarget.length; index += IMPORT_CHUNK) {
+        const values = prepared.withoutTarget.slice(index, index + IMPORT_CHUNK);
+        await tx
+          .insert(holdings)
+          .values(values)
+          .onConflictDoUpdate({
+            target: [holdings.accountId, holdings.cardId],
+            set: { qty: quantity, updatedAt: new Date() },
+          });
+      }
+
+      for (let index = 0; index < prepared.withTarget.length; index += IMPORT_CHUNK) {
+        const values = prepared.withTarget.slice(index, index + IMPORT_CHUNK);
+        await tx
+          .insert(holdings)
+          .values(values)
+          .onConflictDoUpdate({
+            target: [holdings.accountId, holdings.cardId],
+            set: { qty: quantity, targetQty: sql`excluded.target_qty`, updatedAt: new Date() },
+          });
+      }
+    });
+
+    refresh();
+    const changed = prepared.created + prepared.updated;
+    return report(
+      prepared,
+      true,
+      changed === 0 ? "import.appliedNone" : "import.applied",
+    );
+  } catch (error) {
+    const result = toResult(error);
+    return { ...result, issues: [], issueTotal: 0 };
   }
 }
 

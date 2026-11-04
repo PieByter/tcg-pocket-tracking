@@ -14,6 +14,7 @@ Dibangun sesuai [PRD.md](./PRD.md) dan mengikuti design system PocketLedger di [
 - **Stamina & Shinedust** — diisi manual per akun (menyimpan nilai baru mereset timer regen), lalu diperkirakan naik 1 stamina setiap `trade.stamina_regen_hours` (default 24 jam) sampai batas `trade.max_stamina` (default 10). Kandidat dan planner memblokir trade bila stamina pemberi habis atau Shinedust tidak cukup.
 - **Settings & Rules** — CRUD akun (`min_ex`, friend code, stamina, Shinedust) dan semua parameter game (batas Share, kuota Trade, cooldown, jam reset, zona waktu, biaya Shinedust, regen stamina).
 - **PWA** — installable di Android/iOS/desktop, manifest + service worker (cache-first untuk aset statis & thumbnail, halaman offline dua bahasa), dan thumbnail kartu dengan skeleton + lazy loading.
+- **Export & import** — halaman *Data & Backup*: unduh backup JSON lengkap, koleksi (CSV), dan riwayat transfer (CSV); impor koleksi massal dari CSV/tempelan dengan mode ganti atau tambah, plus pratinjau diff sebelum menulis.
 
 ## Stack
 
@@ -92,6 +93,32 @@ Buka <http://localhost:3000> dan login dengan `APP_PASSWORD`.
 | `npm run db:seed:demo` | Seed + isi koleksi contoh |
 | `npm run icons:build` | Regenerasi ikon PWA di `public/icons/` (butuh `sharp`) |
 
+## Export, backup & impor
+
+Semua ada di halaman **Data & Backup** (`/data`). File dibuat di server dari ledger saat ini, jadi selalu ikut data terbaru.
+
+| Endpoint | Isi |
+| --- | --- |
+| `GET /api/export/json` | Backup lengkap: akun (termasuk stamina/Shinedust), semua holdings, seluruh riwayat transfer, dan aturan. |
+| `GET /api/export/collection` | CSV `card_id,set_code,number,name,rarity,account,qty,target_qty` — satu baris per kartu per akun, bisa diimpor kembali apa adanya. |
+| `GET /api/export/transfers` | CSV riwayat transfer lengkap dengan status dan tanggal. |
+
+Ketiganya wajib sesi login dan mengirim `Content-Disposition: attachment`. **File berisi friend code dan catatan pribadi — jangan dibagikan.**
+
+Impor koleksi menerima tempelan teks atau file `.csv`:
+
+```
+card,account,qty,target
+A1-1,Akun 1: Main,2,1
+PROMO-A-3,2,1
+```
+
+- Kolom: kartu, akun, qty, target (opsional). Header opsional; pemisah koma, titik koma, atau tab dideteksi otomatis.
+- Kartu bisa berupa id (`A1-1`), `set-number` (`A1-001`), atau nama kartu yang unik. Akun bisa nama lengkap, nama pendek, atau `#1`–`#8`.
+- Mode **Ganti jumlah** (default) menimpa nilai; mode **Tambah** menjumlahkan dengan qty yang ada (maks 99).
+- **Pratinjau** menampilkan jumlah baris baru/berubah/tetap dan daftar baris bermasalah. Impor hanya menulis bila tidak ada baris bermasalah (maks 5.000 baris unik per batch).
+- Baris untuk pasangan akun+kartu yang sama digabung otomatis; urutan baris terakhir menang pada mode ganti.
+
 ## Bahasa / Language
 
 Aplikasi mendukung **English (default)** dan **Bahasa Indonesia**. Pilihan bahasa disimpan di cookie `pocketledger_locale` (`en` | `id`), bukan di URL, sehingga tidak ada duplikasi route.
@@ -123,9 +150,11 @@ app/
   (app)/inventory/        inventory matrix
   (app)/planner/          daily transfer planner
   (app)/transfers/        riwayat & aksi status
+  (app)/data/             export & impor koleksi
   (app)/settings/         akun + aturan
   login/                  halaman login
   manifest.ts             manifest PWA
+  api/export/[kind]/      unduhan JSON/CSV (butuh sesi)
   actions.ts              seluruh Server Actions (mutasi)
 components/               UI (design system PocketLedger)
 public/
@@ -138,6 +167,9 @@ lib/
   domain.ts               analisis akun, kuota harian, kandidat transfer (pure)
   planner.ts              greedy multi-day planner (pure)
   resources.ts            estimasi stamina & Shinedust per akun (pure)
+  csv.ts                  escape/parse CSV (pure)
+  export.ts               builder backup JSON + CSV (pure)
+  import.ts               parser & resolver impor koleksi (pure)
   cards.ts                rarity/kind/target helpers
   game-day.ts             perhitungan hari reset + zona waktu
   settings.ts             default & parsing konfigurasi
