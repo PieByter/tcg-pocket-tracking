@@ -66,6 +66,7 @@ describe("buildBackupJson", () => {
       transfers: [
         {
           id: "tx-1",
+          userId: "user-1",
           method: "trade",
           fromAccountId: "acc-1",
           toAccountId: "acc-2",
@@ -112,6 +113,7 @@ describe("buildTransfersCsv", () => {
     const csv = buildTransfersCsv([
       {
         id: "tx-1",
+        userId: "user-1",
         method: "share",
         fromAccountId: "acc-1",
         toAccountId: "acc-2",

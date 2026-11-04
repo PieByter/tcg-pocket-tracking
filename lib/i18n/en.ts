@@ -79,16 +79,43 @@ export const en = {
   "login.eyebrow": "Private vault · {count} accounts",
   "login.title": "Ledger Collector",
   "login.description":
-    "Collection data and transfer history live in Supabase and are only reachable with this password.",
-  "login.password": "Ledger password",
-  "login.submit": "Enter the vault",
+    "Sign in with your Supabase account. Every user gets a private ledger stored in Supabase.",
+  "login.email": "Email",
+  "login.password": "Password",
+  "login.submit": "Sign in",
   "login.pending": "Checking…",
-  "login.wrongPassword": "Wrong password.",
+  "login.invalidCredentials": "Wrong email or password.",
+  "login.emailNotConfirmed": "Email not confirmed yet. Open the confirmation link we sent you.",
+  "login.error": "Could not sign in. Try again.",
+  "login.confirmationFailed":
+    "The confirmation link is invalid or has expired. Sign in or register again.",
   "login.notConfigured":
-    "Set APP_PASSWORD in .env.local (or the Vercel environment) before signing in.",
-  "login.feature.cookie": "HttpOnly cookie",
+    "Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local before signing in.",
+  "login.noAccount": "No account yet?",
+  "login.registerLink": "Register",
+  "login.feature.cookie": "Supabase session",
   "login.feature.atomic": "Atomic transfers",
   "login.feature.limits": "Daily limits",
+
+  "register.metaTitle": "Register — PocketLedger",
+  "register.eyebrow": "New vault · multi-user",
+  "register.title": "Create your account",
+  "register.description":
+    "Register with email and password. Your accounts, holdings, transfers, and settings stay private to you.",
+  "register.email": "Email",
+  "register.password": "Password",
+  "register.passwordHint": "At least 8 characters.",
+  "register.confirmPassword": "Repeat password",
+  "register.submit": "Create account",
+  "register.pending": "Creating…",
+  "register.invalid": "Use a valid email and a password of at least 8 characters.",
+  "register.passwordMismatch": "Passwords do not match.",
+  "register.emailTaken": "This email is already registered. Sign in instead.",
+  "register.error": "Could not register. Try again.",
+  "register.checkEmail":
+    "Account created. Check your email for the confirmation link, then sign in.",
+  "register.haveAccount": "Already have an account?",
+  "register.loginLink": "Sign in",
 
   "dash.metaTitle": "PocketLedger — TCG Pocket Multi-Account Tracker",
   "dash.metaDescription":
@@ -448,7 +475,7 @@ export const en = {
   "settings.ops.catalog":
     "Refresh the catalog when a new set drops: npm run catalog:build then npm run db:seed. Existing holdings are untouched.",
   "settings.ops.security":
-    "The app never stores game credentials. The ledger password comes from APP_PASSWORD; sessions are signed with AUTH_SECRET.",
+    "The app never stores game credentials. Sign-in is handled by Supabase Auth; each user only sees their own ledger.",
   "settings.ops.tos":
     "Transferring between your own accounts still has to follow the Pokémon TCG Pocket ToS. This app is a recorder only.",
   "settings.ops.history": "Open transfer history",

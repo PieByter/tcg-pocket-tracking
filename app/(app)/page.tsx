@@ -6,6 +6,7 @@ import { TransferRow } from "@/components/transfer-row";
 import { buildCandidates, quotaFor } from "@/lib/domain";
 import { getI18n } from "@/lib/i18n/server";
 import { loadLedger } from "@/lib/queries";
+import { requireUser } from "@/lib/auth";
 import { estimateResources } from "@/lib/resources";
 
 function recommendationsFor(ledger: Awaited<ReturnType<typeof loadLedger>>, receiverId: string) {
@@ -36,7 +37,8 @@ function recommendationsFor(ledger: Awaited<ReturnType<typeof loadLedger>>, rece
 }
 
 export default async function DashboardPage() {
-  const [ledger, { t }] = await Promise.all([loadLedger(), getI18n()]);
+  const user = await requireUser();
+  const [ledger, { t }] = await Promise.all([loadLedger(user.id), getI18n()]);
   const { summaries, settings, accounts } = ledger;
 
   const deficitAccounts = summaries.filter(

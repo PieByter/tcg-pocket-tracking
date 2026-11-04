@@ -1,35 +1,33 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { cache } from "react";
 import { redirect } from "next/navigation";
-import { timingSafeEqual } from "node:crypto";
-import { SESSION_COOKIE, verifySessionToken } from "./session";
+import type { User } from "@supabase/supabase-js";
+import { createSupabaseServerClient, supabaseConfigured } from "./supabase/server";
 
-export function passwordConfigured(): boolean {
-  return Boolean(process.env.APP_PASSWORD);
-}
-
-export function checkPassword(input: string): boolean {
-  const expected = process.env.APP_PASSWORD ?? "";
-  if (!expected) return false;
-  const a = Buffer.from(input);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
-}
+/** Ambil user aktif sekali per request (cache React). */
+export const getCurrentUser = cache(async (): Promise<User | null> => {
+  if (!supabaseConfigured()) return null;
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.auth.getUser();
+  if (error) return null;
+  return data.user;
+});
 
 export async function readSession(): Promise<boolean> {
-  const store = await cookies();
-  return verifySessionToken(store.get(SESSION_COOKIE)?.value);
+  return Boolean(await getCurrentUser());
+}
+
+export async function requireUser(): Promise<User> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  return user;
+}
+
+export async function requireUserId(): Promise<string> {
+  const user = await requireUser();
+  return user.id;
 }
 
 export async function requireSession(): Promise<void> {
-  if (!(await readSession())) redirect("/login");
+  await requireUser();
 }
-
-export const sessionCookieOptions = {
-  httpOnly: true,
-  sameSite: "lax" as const,
-  path: "/",
-  secure: process.env.NODE_ENV === "production",
-  maxAge: 30 * 24 * 60 * 60,
-};

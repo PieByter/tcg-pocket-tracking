@@ -7,6 +7,7 @@ export const settings: AppSettings = { ...DEFAULT_SETTINGS };
 export function account(id: string, overrides: Partial<Account> = {}): Account {
   return {
     id,
+    userId: "user-1",
     name: `Akun ${id}`,
     friendCode: null,
     minEx: 2,

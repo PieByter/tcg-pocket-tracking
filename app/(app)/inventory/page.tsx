@@ -5,6 +5,7 @@ import { EmptyState, PageHeader, SectionHeading } from "@/components/ui";
 import { RARITY_GROUPS } from "@/lib/cards";
 import { getI18n } from "@/lib/i18n/server";
 import { loadInventoryPage, loadLedger } from "@/lib/queries";
+import { requireUser } from "@/lib/auth";
 
 export async function generateMetadata() {
   const { t } = await getI18n();
@@ -36,7 +37,11 @@ export default async function InventoryPage(props: PageProps<"/inventory">) {
     page: Number(searchParams.page ?? 1) || 1,
   };
 
-  const [page, ledger] = await Promise.all([loadInventoryPage(filters), loadLedger()]);
+  const user = await requireUser();
+  const [page, ledger] = await Promise.all([
+    loadInventoryPage(user.id, filters),
+    loadLedger(user.id),
+  ]);
   const { accounts, settings, summaries } = ledger;
   const focusAccountId = typeof searchParams.account === "string" ? searchParams.account : undefined;
   const focusAccount = accounts.find((account) => account.id === focusAccountId);

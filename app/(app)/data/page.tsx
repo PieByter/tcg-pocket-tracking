@@ -4,6 +4,7 @@ import { PageHeader, SectionHeading, StatCard } from "@/components/ui";
 import { formatNumber } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { loadDataStats } from "@/lib/queries";
+import { requireUser } from "@/lib/auth";
 
 export async function generateMetadata() {
   const { t } = await getI18n();
@@ -37,7 +38,8 @@ const EXPORTS: {
 ];
 
 export default async function DataPage() {
-  const [{ locale, t }, stats] = await Promise.all([getI18n(), loadDataStats()]);
+  const user = await requireUser();
+  const [{ locale, t }, stats] = await Promise.all([getI18n(), loadDataStats(user.id)]);
 
   return (
     <div className="space-y-6">

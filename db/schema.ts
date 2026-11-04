@@ -16,6 +16,8 @@ export const accounts = pgTable(
   "accounts",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** Supabase Auth user (auth.users.id). Tidak pakai FK agar auth schema tetap milik Supabase. */
+    userId: uuid("user_id").notNull(),
     name: text("name").notNull(),
     friendCode: text("friend_code"),
     minEx: integer("min_ex").notNull().default(2),
@@ -29,6 +31,7 @@ export const accounts = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    index("accounts_user_idx").on(t.userId),
     check("accounts_stamina_non_negative", sql`${t.tradeStamina} >= 0`),
     check("accounts_shinedust_non_negative", sql`${t.shinedust} >= 0`),
   ],
@@ -84,6 +87,7 @@ export const transfers = pgTable(
   "transfers",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(),
     method: text("method").notNull().$type<"share" | "trade">(),
     fromAccountId: uuid("from_account_id")
       .notNull()
@@ -109,6 +113,7 @@ export const transfers = pgTable(
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
   },
   (t) => [
+    index("transfers_user_idx").on(t.userId),
     index("transfers_status_idx").on(t.status),
     index("transfers_game_day_idx").on(t.gameDay),
     check("transfers_distinct_accounts", sql`${t.fromAccountId} <> ${t.toAccountId}`),
@@ -124,11 +129,16 @@ export const transfers = pgTable(
   ],
 );
 
-export const appConfig = pgTable("app_config", {
-  key: text("key").primaryKey(),
-  value: text("value").notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const appConfig = pgTable(
+  "app_config",
+  {
+    userId: uuid("user_id").notNull(),
+    key: text("key").notNull(),
+    value: text("value").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.key] })],
+);
 
 export type Account = typeof accounts.$inferSelect;
 export type Card = typeof cards.$inferSelect;

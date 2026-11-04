@@ -15,10 +15,13 @@
     "db:push": "drizzle-kit push",
     "db:seed": "tsx scripts/seed.ts",
     "db:seed:demo": "tsx scripts/seed.ts --demo",
+    "db:migrate:local": "tsx scripts/migrate-local.ts",
     "icons:build": "node scripts/build-icons.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.15",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.118.0",
     "drizzle-orm": "^0.45.4",
     "next": "16.4.5",
     "postgres": "^4.0.0",

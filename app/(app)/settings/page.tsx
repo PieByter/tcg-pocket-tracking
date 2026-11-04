@@ -7,6 +7,7 @@ import { PageHeader, SectionHeading } from "@/components/ui";
 import { formatNumber } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { catalogCardCount, loadLedger } from "@/lib/queries";
+import { requireUser } from "@/lib/auth";
 import type { Translate } from "@/lib/i18n";
 
 export async function generateMetadata() {
@@ -15,8 +16,9 @@ export async function generateMetadata() {
 }
 
 export default async function SettingsPage() {
+  const user = await requireUser();
   const [[ledger, catalogCount], { locale, t }] = await Promise.all([
-    Promise.all([loadLedger(), catalogCardCount()]),
+    Promise.all([loadLedger(user.id), catalogCardCount()]),
     getI18n(),
   ]);
   const { accounts, settings } = ledger;

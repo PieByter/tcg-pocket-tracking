@@ -19,11 +19,14 @@ export type ShellStats = {
 export async function AppShell({
   children,
   stats,
+  userEmail,
 }: {
   children: React.ReactNode;
   stats: ShellStats;
+  userEmail: string;
 }) {
   const { locale, t } = await getI18n();
+  const initials = (userEmail.split("@")[0] || "?").slice(0, 2).toUpperCase();
 
   return (
     <div className="min-h-dvh">
@@ -74,12 +77,14 @@ export async function AppShell({
 
             <div className="ml-auto flex items-center gap-2">
               <LanguageSwitcher locale={locale} t={t} compact />
-              <span className="hidden text-right text-xs leading-tight text-on-surface-variant md:block">
-                <span className="block font-display text-sm text-on-surface">Pieter</span>
+              <span className="hidden max-w-56 text-right text-xs leading-tight text-on-surface-variant md:block">
+                <span className="block truncate font-display text-sm text-on-surface">
+                  {userEmail || t("shell.role")}
+                </span>
                 {t("shell.role")}
               </span>
               <span className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-surface-container-high font-display text-sm text-primary">
-                PT
+                {initials}
               </span>
               <form action={logout}>
                 <button

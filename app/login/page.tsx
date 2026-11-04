@@ -4,18 +4,21 @@ import { LoginForm } from "@/components/login-form";
 import { Logo } from "@/components/brand";
 import { Icon } from "@/components/icon";
 import { LanguageSwitcher } from "@/components/language-switcher";
-import { passwordConfigured, readSession } from "@/lib/auth";
+import { readSession } from "@/lib/auth";
 import { getI18n } from "@/lib/i18n/server";
+import { supabaseConfigured } from "@/lib/supabase/server";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n();
   return { title: t("login.metaTitle") };
 }
 
-export default async function LoginPage() {
+export default async function LoginPage(props: PageProps<"/login">) {
   if (await readSession()) redirect("/");
 
-  const { locale, t } = await getI18n();
+  const [searchParams, { locale, t }] = await Promise.all([props.searchParams, getI18n()]);
+  const next = typeof searchParams.next === "string" ? searchParams.next : undefined;
+  const error = typeof searchParams.error === "string" ? searchParams.error : undefined;
   const features = [
     { icon: "shield" as const, label: t("login.feature.cookie") },
     { icon: "swap" as const, label: t("login.feature.atomic") },
@@ -38,8 +41,15 @@ export default async function LoginPage() {
           <h1 className="mt-2 font-display text-headline-lg text-on-surface">{t("login.title")}</h1>
           <p className="mt-1 text-body-sm text-on-surface-variant">{t("login.description")}</p>
 
+          {error && (
+            <p className="mt-4 flex items-start gap-2 rounded-lg border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-200">
+              <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0" />
+              {t(error === "confirmation" ? "login.confirmationFailed" : "login.error")}
+            </p>
+          )}
+
           <div className="mt-5">
-            <LoginForm configured={passwordConfigured()} />
+            <LoginForm configured={supabaseConfigured()} next={next} />
           </div>
         </div>
 

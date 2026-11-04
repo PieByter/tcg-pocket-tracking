@@ -4,6 +4,7 @@ import { TransferRow } from "@/components/transfer-row";
 import { EmptyState, PageHeader, SectionHeading, StatCard } from "@/components/ui";
 import { getI18n } from "@/lib/i18n/server";
 import { loadLedger } from "@/lib/queries";
+import { requireUser } from "@/lib/auth";
 import type { MessageKey } from "@/lib/i18n";
 import type { TransferStatus } from "@/db/schema";
 
@@ -21,9 +22,10 @@ const FILTERS: { value: "all" | TransferStatus; key: MessageKey }[] = [
 ];
 
 export default async function TransfersPage(props: PageProps<"/transfers">) {
+  const user = await requireUser();
   const [searchParams, ledger, { t }] = await Promise.all([
     props.searchParams,
-    loadLedger(),
+    loadLedger(user.id),
     getI18n(),
   ]);
   const status = (typeof searchParams.status === "string" ? searchParams.status : "all") as

@@ -3,7 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 import type { NextRequest } from "next/server";
 import { getDb } from "@/db";
 import { accounts, cards as cardsTable, holdings, transfers } from "@/db/schema";
-import { readSession } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import {
   backupFileName,
   buildBackupJson,
@@ -29,31 +29,38 @@ function attachment(body: string, contentType: string, fileName: string): Respon
   });
 }
 
-async function loadAccounts() {
+async function loadAccounts(userId: string) {
   const db = await getDb();
-  return db.select().from(accounts).orderBy(asc(accounts.sortOrder), asc(accounts.createdAt));
+  return db
+    .select()
+    .from(accounts)
+    .where(eq(accounts.userId, userId))
+    .orderBy(asc(accounts.sortOrder), asc(accounts.createdAt));
 }
 
-async function loadHoldings(): Promise<BackupHolding[]> {
+async function loadHoldings(userId: string): Promise<BackupHolding[]> {
   const db = await getDb();
   const rows = await db
     .select({ holding: holdings, card: cardsTable })
     .from(holdings)
-    .innerJoin(cardsTable, eq(cardsTable.id, holdings.cardId));
+    .innerJoin(cardsTable, eq(cardsTable.id, holdings.cardId))
+    .innerJoin(accounts, eq(accounts.id, holdings.accountId))
+    .where(eq(accounts.userId, userId));
   return rows.map((row) => ({ ...row.holding, card: row.card }));
 }
 
-async function loadTransfers(): Promise<BackupTransfer[]> {
+async function loadTransfers(userId: string): Promise<BackupTransfer[]> {
   const db = await getDb();
   const outCard = alias(cardsTable, "out_card");
   const inCard = alias(cardsTable, "in_card");
   const [accountRows, rows] = await Promise.all([
-    loadAccounts(),
+    loadAccounts(userId),
     db
       .select({ transfer: transfers, cardOut: outCard, cardIn: inCard })
       .from(transfers)
       .innerJoin(outCard, eq(outCard.id, transfers.cardOutId))
       .leftJoin(inCard, eq(inCard.id, transfers.cardInId))
+      .where(eq(transfers.userId, userId))
       .orderBy(desc(transfers.createdAt)),
   ]);
 
@@ -67,7 +74,8 @@ async function loadTransfers(): Promise<BackupTransfer[]> {
 }
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ kind: string }> }) {
-  if (!(await readSession())) {
+  const user = await getCurrentUser();
+  if (!user) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -80,10 +88,10 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ ki
 
   if (kind === "json") {
     const [accountRows, holdingRows, transferRows, settings] = await Promise.all([
-      loadAccounts(),
-      loadHoldings(),
-      loadTransfers(),
-      getSettings(),
+      loadAccounts(user.id),
+      loadHoldings(user.id),
+      loadTransfers(user.id),
+      getSettings(user.id),
     ]);
     return attachment(
       buildBackupJson({
@@ -99,7 +107,10 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ ki
   }
 
   if (kind === "collection") {
-    const [accountRows, holdingRows] = await Promise.all([loadAccounts(), loadHoldings()]);
+    const [accountRows, holdingRows] = await Promise.all([
+      loadAccounts(user.id),
+      loadHoldings(user.id),
+    ]);
     return attachment(
       buildCollectionCsv(accountRows, holdingRows),
       "text/csv; charset=utf-8",
@@ -108,7 +119,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ ki
   }
 
   return attachment(
-    buildTransfersCsv(await loadTransfers()),
+    buildTransfersCsv(await loadTransfers(user.id)),
     "text/csv; charset=utf-8",
     backupFileName("transfers", exportedAt, "csv"),
   );

@@ -81,16 +81,44 @@ export const id: Record<MessageKey, string> = {
   "login.eyebrow": "Vault privat · {count} akun",
   "login.title": "Kolektor Ledger",
   "login.description":
-    "Data koleksi dan riwayat transfer tersimpan di Supabase dan hanya bisa diakses dengan password ini.",
-  "login.password": "Password ledger",
-  "login.submit": "Masuk ke vault",
+    "Masuk dengan akun Supabase. Tiap user punya ledger privat yang tersimpan di Supabase.",
+  "login.email": "Email",
+  "login.password": "Password",
+  "login.submit": "Masuk",
   "login.pending": "Memeriksa…",
-  "login.wrongPassword": "Password salah.",
+  "login.invalidCredentials": "Email atau password salah.",
+  "login.emailNotConfirmed":
+    "Email belum dikonfirmasi. Buka link konfirmasi yang sudah dikirim.",
+  "login.error": "Gagal masuk. Coba lagi.",
+  "login.confirmationFailed":
+    "Link konfirmasi tidak valid atau kedaluwarsa. Silakan masuk atau daftar ulang.",
   "login.notConfigured":
-    "Set APP_PASSWORD di .env.local (atau environment Vercel) sebelum login.",
-  "login.feature.cookie": "Cookie HttpOnly",
+    "Set NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_ANON_KEY di .env.local sebelum login.",
+  "login.noAccount": "Belum punya akun?",
+  "login.registerLink": "Daftar",
+  "login.feature.cookie": "Sesi Supabase",
   "login.feature.atomic": "Transfer atomik",
   "login.feature.limits": "Batas harian",
+
+  "register.metaTitle": "Daftar — PocketLedger",
+  "register.eyebrow": "Vault baru · multi-user",
+  "register.title": "Buat akun kamu",
+  "register.description":
+    "Daftar dengan email dan password. Akun game, kepemilikan, transfer, dan setting hanya terlihat olehmu.",
+  "register.email": "Email",
+  "register.password": "Password",
+  "register.passwordHint": "Minimal 8 karakter.",
+  "register.confirmPassword": "Ulangi password",
+  "register.submit": "Buat akun",
+  "register.pending": "Membuat…",
+  "register.invalid": "Gunakan email valid dan password minimal 8 karakter.",
+  "register.passwordMismatch": "Password tidak sama.",
+  "register.emailTaken": "Email ini sudah terdaftar. Silakan masuk.",
+  "register.error": "Gagal mendaftar. Coba lagi.",
+  "register.checkEmail":
+    "Akun dibuat. Buka link konfirmasi di email kamu, lalu masuk.",
+  "register.haveAccount": "Sudah punya akun?",
+  "register.loginLink": "Masuk",
 
   "dash.metaTitle": "PocketLedger — Pelacak Multi-Akun TCG Pocket",
   "dash.metaDescription":
@@ -466,7 +494,7 @@ export const id: Record<MessageKey, string> = {
   "settings.ops.catalog":
     "Perbarui katalog saat set baru rilis: npm run catalog:build lalu npm run db:seed. Kepemilikan yang sudah ada tidak berubah.",
   "settings.ops.security":
-    "Aplikasi tidak menyimpan kredensial game. Password ledger berasal dari APP_PASSWORD; sesi ditandatangani AUTH_SECRET.",
+    "Aplikasi tidak menyimpan kredensial game. Login ditangani Supabase Auth; tiap user hanya melihat ledger miliknya.",
   "settings.ops.tos":
     "Transfer antar akun sendiri tetap perlu mengikuti ToS Pokémon TCG Pocket. Aplikasi ini hanya pencatat.",
   "settings.ops.history": "Buka riwayat transfer",

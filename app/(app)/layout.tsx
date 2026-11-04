@@ -1,10 +1,10 @@
 import { AppShell } from "@/components/app-shell";
-import { requireSession } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { loadLedger } from "@/lib/queries";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  await requireSession();
-  const ledger = await loadLedger();
+  const user = await requireUser();
+  const ledger = await loadLedger(user.id);
 
   const shareUsedToday = [...ledger.usage.receivedShare.values()].reduce((total, value) => total + value, 0);
   const deficitAccounts = ledger.summaries.filter(
@@ -13,6 +13,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <AppShell
+      userEmail={user.email ?? ""}
       stats={{
         accountsCount: ledger.accounts.length,
         trackedCount: ledger.summaries.filter((summary) => summary.status !== "untracked").length,

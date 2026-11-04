@@ -1,16 +1,36 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { login } from "@/app/actions";
 import { Icon } from "@/components/icon";
 import { useI18n } from "./i18n-provider";
 
-export function LoginForm({ configured }: { configured: boolean }) {
+export function LoginForm({ configured, next }: { configured: boolean; next?: string }) {
   const { t } = useI18n();
   const [state, formAction, pending] = useActionState(login, null);
 
   return (
     <form action={formAction} className="space-y-4">
+      <input type="hidden" name="next" value={next ?? ""} />
+
+      <div className="space-y-1.5">
+        <label htmlFor="email" className="label-xs block">
+          {t("login.email")}
+        </label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          required
+          autoFocus
+          className="field"
+          placeholder="you@example.com"
+        />
+      </div>
+
       <div className="space-y-1.5">
         <label htmlFor="password" className="label-xs block">
           {t("login.password")}
@@ -21,8 +41,7 @@ export function LoginForm({ configured }: { configured: boolean }) {
           type="password"
           autoComplete="current-password"
           required
-          autoFocus
-          className="field font-mono tracking-widest"
+          className="field"
           placeholder="••••••••"
         />
       </div>
@@ -54,6 +73,13 @@ export function LoginForm({ configured }: { configured: boolean }) {
           </>
         )}
       </button>
+
+      <p className="text-center text-sm text-on-surface-variant">
+        {t("login.noAccount")}{" "}
+        <Link href="/register" className="text-primary hover:underline">
+          {t("login.registerLink")}
+        </Link>
+      </p>
     </form>
   );
 }

@@ -14,6 +14,7 @@ import { accountShortName, formatNumber } from "@/lib/format";
 import type { MessageKey } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
 import { loadLedger } from "@/lib/queries";
+import { requireUser } from "@/lib/auth";
 import { estimateResources } from "@/lib/resources";
 
 const blockKeys: Record<CandidateBlock, MessageKey> = {
@@ -33,7 +34,8 @@ export async function generateMetadata() {
 }
 
 export default async function MatcherPage(props: PageProps<"/matcher">) {
-  const [searchParams, ledger] = await Promise.all([props.searchParams, loadLedger()]);
+  const user = await requireUser();
+  const [searchParams, ledger] = await Promise.all([props.searchParams, loadLedger(user.id)]);
   const { locale, t } = await getI18n();
   const { accounts, cards, holdings, settings, usage } = ledger;
 

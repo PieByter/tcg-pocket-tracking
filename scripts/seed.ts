@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { eq } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "@/db/schema";
 import { DEFAULT_SETTINGS, serializeSettings } from "@/lib/settings";
@@ -22,7 +23,15 @@ type Catalog = {
 
 const MIGRATIONS = path.join(process.cwd(), "drizzle");
 
-async function connect() {
+type Connection = {
+  db: Db;
+  close: () => Promise<void> | void;
+  resolveUserId: (email: string | undefined) => Promise<string | null>;
+};
+
+const LEGACY_USER_ID = "00000000-0000-0000-0000-000000000000";
+
+async function connect(): Promise<Connection> {
   const url = process.env.DATABASE_URL?.trim();
   if (url) {
     const [{ default: postgres }, { drizzle }, { migrate }] = await Promise.all([
@@ -37,7 +46,22 @@ async function connect() {
     });
     const db = drizzle(client, { schema }) as unknown as Db;
     await migrate(db as never, { migrationsFolder: MIGRATIONS });
-    return { db, close: () => client.end({ timeout: 5 }) };
+    return {
+      db,
+      close: () => client.end({ timeout: 5 }),
+      resolveUserId: async (email) => {
+        if (!email) return null;
+        const rows =
+          await client`select id from auth.users where lower(email) = lower(${email}) limit 1`;
+        const id = (rows[0] as { id?: string } | undefined)?.id;
+        if (!id) {
+          throw new Error(
+            `User ${email} belum ada di Supabase Auth. Daftar dulu lewat /register, lalu ulangi seed.`,
+          );
+        }
+        return id;
+      },
+    };
   }
 
   const [{ PGlite }, { drizzle }, { migrate }] = await Promise.all([
@@ -50,7 +74,15 @@ async function connect() {
   const client = new PGlite(dataDir);
   const db = drizzle(client, { schema }) as unknown as Db;
   await migrate(db as never, { migrationsFolder: MIGRATIONS });
-  return { db, close: () => client.close() };
+  return {
+    db,
+    close: () => client.close(),
+    resolveUserId: async () => {
+      const explicit = process.env.SEED_USER_ID?.trim();
+      if (explicit) return explicit;
+      return LEGACY_USER_ID;
+    },
+  };
 }
 
 const DEMO_ACCOUNTS = [
@@ -74,7 +106,7 @@ async function main() {
     throw new Error("data/catalog.json kosong. Jalankan `npm run catalog:build` dulu.");
   }
 
-  const { db, close } = await connect();
+  const { db, close, resolveUserId } = await connect();
   try {
     console.log(`Upserting ${catalog.cards.length} kartu...`);
     for (let index = 0; index < catalog.cards.length; index += 400) {
@@ -101,13 +133,26 @@ async function main() {
         });
     }
 
-    const existingAccounts = await db.select({ id: schema.accounts.id }).from(schema.accounts);
+    const userId = await resolveUserId(process.env.SEED_USER_EMAIL?.trim());
+    if (!userId) {
+      console.log(
+        "Katalog selesai. SEED_USER_EMAIL belum diisi, jadi 8 akun default + config dilewati.",
+      );
+      return;
+    }
+
+    const existingAccounts = await db
+      .select({ id: schema.accounts.id })
+      .from(schema.accounts)
+      .where(eq(schema.accounts.userId, userId));
     let accountIds = existingAccounts.map((row) => row.id);
 
     if (accountIds.length === 0) {
       const inserted = await db
         .insert(schema.accounts)
-        .values(DEMO_ACCOUNTS.map((account, index) => ({ ...account, sortOrder: index })))
+        .values(
+          DEMO_ACCOUNTS.map((account, index) => ({ ...account, sortOrder: index, userId })),
+        )
         .returning({ id: schema.accounts.id });
       accountIds = inserted.map((row) => row.id);
       console.log(`Membuat ${accountIds.length} akun default.`);
@@ -115,7 +160,7 @@ async function main() {
 
     await db
       .insert(schema.appConfig)
-      .values(serializeSettings(DEFAULT_SETTINGS))
+      .values(serializeSettings(DEFAULT_SETTINGS).map((row) => ({ ...row, userId })))
       .onConflictDoNothing();
 
     if (demo) {

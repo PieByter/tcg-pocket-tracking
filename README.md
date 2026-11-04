@@ -21,51 +21,84 @@ Dibangun sesuai [PRD.md](./PRD.md) dan mengikuti design system PocketLedger di [
 | Layer | Pilihan |
 | --- | --- |
 | App | Next.js 16 App Router (Server Components + Server Actions), React 19, Tailwind v4 |
-| DB | Supabase Postgres (production) / **PGlite** embedded Postgres (lokal, tanpa setup) |
+| DB | Supabase Postgres (production) / **PGlite** embedded Postgres (lokal, tanpa setup DB) |
 | ORM | Drizzle ORM + `postgres.js` (`prepare: false` untuk transaction pooler Supabase) |
-| Auth | Password tunggal + cookie HttpOnly bertanda tangan HMAC (`node:crypto`) |
+| Auth | Supabase Auth (email + password) dengan cookie SSR `@supabase/ssr` |
+| Multi-user | Tiap user punya ledger sendiri (`user_id` di `accounts`, `transfers`, `app_config`) |
 | Deploy | Vercel |
 | Test | Vitest untuk fungsi murni (kandidat, planner, game day) |
 
 ## Menjalankan lokal
 
-Tidak perlu Supabase. Tanpa `DATABASE_URL`, aplikasi memakai PGlite (Postgres WASM) di `.data/pocketledger`.
+Login memakai **Supabase Auth**, jadi project Supabase tetap dibutuhkan. Kalau `DATABASE_URL` kosong, data ledger disimpan di PGlite lokal (`.data/pocketledger`), tetapi autentikasi tetap ke Supabase.
+
+1. Aktifkan **Authentication → Providers → Email** di dashboard Supabase.
+2. Isi **Authentication → URL Configuration**:
+   - Site URL: `http://localhost:3000`
+   - Redirect URLs: `http://localhost:3000/auth/callback`
+3. Siapkan env dan jalankan:
 
 ```bash
 npm install
-cp .env.example .env.local   # isi APP_PASSWORD & AUTH_SECRET
-npm run db:seed              # katalog kartu + 8 akun default + config default
+cp .env.example .env.local   # isi NEXT_PUBLIC_SUPABASE_URL, ANON_KEY, DATABASE_URL
+npm run db:migrate           # atau npm run db:push untuk database baru
 npm run dev
 ```
 
-`npm run db:seed:demo` menambahkan koleksi contoh agar dashboard/matcher/planner langsung terlihat berisi. Seed demo hanya jalan saat tabel holdings masih kosong.
+4. Buka <http://localhost:3000/register>, daftar, lalu konfirmasi email. Buka link konfirmasi di browser yang sama dengan proses daftar (verifier PKCE disimpan di cookie); kalau link dibuka di perangkat lain, cukup login manual setelah email terkonfirmasi.
+5. Isi `SEED_USER_EMAIL` di `.env.local` dengan email tadi, lalu seed katalog:
 
-Buka <http://localhost:3000> dan login dengan `APP_PASSWORD`.
+```bash
+npm run db:seed              # katalog kartu + 8 akun default + config default
+```
+
+`npm run db:seed:demo` menambahkan koleksi contoh agar dashboard/matcher/planner langsung terlihat berisi. Seed demo hanya jalan saat tabel holdings user itu masih kosong.
+
+### Memindahkan data lokal lama
+
+Kalau sebelumnya sudah memakai PGlite dan ingin membawanya ke Supabase:
+
+```bash
+SEED_USER_EMAIL="you@example.com" npm run db:migrate:local
+```
+
+Skrip ini menyalin `accounts`, `holdings`, `transfers`, dan `app_config` dari `.data/pocketledger` ke user tersebut. Data user itu di Supabase diganti (bukan digabung). Jalankan `npm run db:seed` lebih dulu supaya katalog kartu tersedia.
+
+### Kalau `db:seed` dijalankan tanpa `SEED_USER_EMAIL`
+
+Hanya katalog kartu yang di-upsert; 8 akun default dan config dilewati. Ini berguna saat pertama kali menyiapkan project, sebelum ada user terdaftar.
 
 ## Setup Supabase + Vercel
 
 1. **Buat project Supabase** (region terdekat, mis. Singapore).
-2. **Ambil connection string** di *Project Settings → Database*:
-   - `DATABASE_URL` → **Connection pooling / Transaction mode**, port `6543`, tambahkan `?sslmode=require`.
-   - `DIRECT_URL` → **Direct connection**, port `5432` (dipakai migrasi `drizzle-kit`).
-3. **Jalankan migrasi** dari mesin lokal:
+2. **Ambil kredensial**:
+   - *Project Settings → API*: `NEXT_PUBLIC_SUPABASE_URL` dan `NEXT_PUBLIC_SUPABASE_ANON_KEY` (publishable/anon key — nilainya memang publik).
+   - *Project Settings → Database*: pakai **Pooler** untuk kedua URL. Host `db.<ref>.supabase.co` sekarang hanya punya record IPv6, jadi tidak bisa dipakai dari jaringan IPv4-only.
+     - `DATABASE_URL` → **Transaction mode**, port `6543`, user `postgres.<ref>`.
+     - `DIRECT_URL` → **Session mode**, port `5432`, user `postgres.<ref>` (dipakai `drizzle-kit`).
+3. **Atur Auth** di *Authentication*:
+   - Aktifkan provider **Email**.
+   - *URL Configuration → Site URL*: `https://<domain-vercel-kamu>`.
+   - *Redirect URLs*: `https://<domain-vercel-kamu>/auth/callback` (tambahkan juga `http://localhost:3000/auth/callback` untuk lokal).
+4. **Jalankan migrasi** dari mesin lokal:
    ```bash
    npm run db:migrate
    npm run db:seed
    ```
    Alternatif: `npm run db:push` untuk menyamakan skema tanpa file migrasi.
-4. **Deploy ke Vercel**, lalu set environment variables:
+5. **Deploy ke Vercel**, lalu set environment variables:
 
    | Variable | Wajib | Keterangan |
    | --- | --- | --- |
-   | `DATABASE_URL` | ya | Postgres pooler Supabase (`prepare: false` sudah diset otomatis) |
-   | `APP_PASSWORD` | ya | Password halaman login |
-   | `AUTH_SECRET` | ya | String acak ≥ 16 karakter untuk menandatangani cookie sesi |
-   | `DIRECT_URL` | tidak | Hanya untuk `drizzle-kit` di lokal/CI |
+   | `NEXT_PUBLIC_SUPABASE_URL` | ya | Project URL Supabase |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ya | anon/publishable key (memang publik, hanya untuk Auth) |
+   | `DATABASE_URL` | ya | Pooler Transaction mode (port `6543`), user `postgres.<ref>`; `prepare: false` sudah diset otomatis |
+   | `DIRECT_URL` | tidak | Pooler Session mode (port `5432`), hanya untuk `drizzle-kit` di lokal/CI |
+   | `SEED_USER_EMAIL` | tidak | Email user untuk `db:seed` / `db:migrate:local` |
    | `ALLOW_LOCAL_DB` | tidak | `1` untuk mengizinkan PGlite saat `NODE_ENV=production` (hanya uji lokal) |
 
-   Tidak ada satu pun variabel yang diekspos ke browser.
-5. **Amankan database**: aplikasi mengakses Postgres langsung dari server (tanpa `anon key` di browser), jadi RLS tidak dipakai. Tetap disarankan:
+   `NEXT_PUBLIC_*` memang ikut ke browser; token sesi tetap disimpan sebagai cookie HttpOnly oleh `@supabase/ssr`.
+6. **Amankan database**: aplikasi mengakses Postgres langsung dari server dan memfilter semua query dengan `user_id`. Sebagai lapisan tambahan, aktifkan RLS agar `anon key` tidak bisa membaca tabel lewat PostgREST:
    ```sql
    alter table public.accounts   enable row level security;
    alter table public.cards      enable row level security;
@@ -74,7 +107,7 @@ Buka <http://localhost:3000> dan login dengan `APP_PASSWORD`.
    alter table public.app_config enable row level security;
    -- tanpa policy => tidak ada akses lewat PostgREST/anon key
    ```
-   Koneksi aplikasi memakai user `postgres`/service yang melewati RLS.
+   Koneksi aplikasi memakai user `postgres`/service yang melewati RLS, jadi isolasi per user dijaga oleh query aplikasi.
 
 ## Perintah
 
@@ -89,8 +122,9 @@ Buka <http://localhost:3000> dan login dengan `APP_PASSWORD`.
 | `npm run db:generate` | Generate migrasi SQL baru dari `db/schema.ts` |
 | `npm run db:migrate` | Terapkan migrasi ke `DIRECT_URL`/`DATABASE_URL` |
 | `npm run db:push` | Sinkronkan skema langsung (tanpa file migrasi) |
-| `npm run db:seed` | Upsert katalog kartu + akun default + config |
+| `npm run db:seed` | Upsert katalog kartu + akun default + config untuk `SEED_USER_EMAIL` |
 | `npm run db:seed:demo` | Seed + isi koleksi contoh |
+| `npm run db:migrate:local` | Salin data PGlite lokal ke user Supabase (`SEED_USER_EMAIL`) |
 | `npm run icons:build` | Regenerasi ikon PWA di `public/icons/` (butuh `sharp`) |
 
 ## Export, backup & impor
@@ -153,6 +187,8 @@ app/
   (app)/data/             export & impor koleksi
   (app)/settings/         akun + aturan
   login/                  halaman login
+  register/               halaman pendaftaran
+  auth/callback/          tukar kode konfirmasi Supabase jadi sesi
   manifest.ts             manifest PWA
   api/export/[kind]/      unduhan JSON/CSV (butuh sesi)
   actions.ts              seluruh Server Actions (mutasi)
@@ -173,12 +209,13 @@ lib/
   cards.ts                rarity/kind/target helpers
   game-day.ts             perhitungan hari reset + zona waktu
   settings.ts             default & parsing konfigurasi
-  queries.ts              query baca (ledger, inventory)
-  auth.ts / session.ts    sesi cookie
+  queries.ts              query baca (ledger, inventory) — selalu difilter user_id
+  auth.ts                 user aktif + guard sesi (Supabase Auth)
+  supabase/server.ts      Supabase server client (cookie SSR)
   i18n/                   kamus EN/ID + helper server & tipe
 drizzle/                  migrasi SQL hasil drizzle-kit
 data/catalog.json         katalog kartu (seed)
-scripts/                  build-catalog, seed
+scripts/                  build-catalog, seed, migrate-local
 tests/                    unit test fungsi murni
 proxy.ts                  redirect optimistik ke /login
 ```

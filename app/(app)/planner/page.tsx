@@ -10,6 +10,7 @@ import { relativeDayLabel } from "@/lib/game-day";
 import { getI18n } from "@/lib/i18n/server";
 import { buildPlan, planSummaryByDay } from "@/lib/planner";
 import { loadLedger } from "@/lib/queries";
+import { requireUser } from "@/lib/auth";
 import { staminaRegenPerDay } from "@/lib/resources";
 
 export async function generateMetadata() {
@@ -18,7 +19,8 @@ export async function generateMetadata() {
 }
 
 export default async function PlannerPage() {
-  const [ledger, { locale, t }] = await Promise.all([loadLedger(), getI18n()]);
+  const user = await requireUser();
+  const [ledger, { locale, t }] = await Promise.all([loadLedger(user.id), getI18n()]);
   const { accounts, cards, holdings, settings, usage } = ledger;
 
   const plan = buildPlan({

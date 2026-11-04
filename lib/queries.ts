@@ -3,7 +3,7 @@ import { cache } from "react";
 import { and, asc, desc, eq, ilike, inArray, lte, or, sql, type SQL } from "drizzle-orm";
 import { getDb } from "@/db";
 import { accounts as accountsTable, cards as cardsTable, holdings as holdingsTable, transfers as transfersTable } from "@/db/schema";
-import type { Account, Card, Transfer } from "@/db/schema";
+import type { Account, Card, Holding, Transfer } from "@/db/schema";
 import { getSettings, type AppSettings } from "./config";
 import {
   type AccountSummary,
@@ -54,21 +54,30 @@ async function loadCards(ids: string[]): Promise<Card[]> {
   return rows;
 }
 
-export const loadAccounts = cache(async (): Promise<Account[]> => {
+export const loadAccounts = cache(async (userId: string): Promise<Account[]> => {
   const db = await getDb();
   return db
     .select()
     .from(accountsTable)
+    .where(eq(accountsTable.userId, userId))
     .orderBy(asc(accountsTable.sortOrder), asc(accountsTable.createdAt));
 });
 
-export const loadLedger = cache(async (): Promise<Ledger> => {
+export const loadLedger = cache(async (userId: string): Promise<Ledger> => {
   const db = await getDb();
-  const settings = await getSettings();
-  const [accounts, holdingRows, transferRows, catalogProbe] = await Promise.all([
-    loadAccounts(),
-    db.select().from(holdingsTable),
-    db.select().from(transfersTable).orderBy(desc(transfersTable.createdAt)).limit(TRANSFER_LIMIT),
+  const settings = await getSettings(userId);
+  const accounts = await loadAccounts(userId);
+  const accountIds = accounts.map((account) => account.id);
+  const [holdingRows, transferRows, catalogProbe] = await Promise.all([
+    accountIds.length > 0
+      ? db.select().from(holdingsTable).where(inArray(holdingsTable.accountId, accountIds))
+      : ([] as Holding[]),
+    db
+      .select()
+      .from(transfersTable)
+      .where(eq(transfersTable.userId, userId))
+      .orderBy(desc(transfersTable.createdAt))
+      .limit(TRANSFER_LIMIT),
     db.select({ id: cardsTable.id }).from(cardsTable).limit(1),
   ]);
 
@@ -137,7 +146,10 @@ export type InventoryPage = {
 
 export const INVENTORY_PAGE_SIZE = 40;
 
-export async function loadInventoryPage(filters: InventoryFilters): Promise<InventoryPage> {
+export async function loadInventoryPage(
+  userId: string,
+  filters: InventoryFilters,
+): Promise<InventoryPage> {
   const db = await getDb();
   const page = Math.max(1, filters.page ?? 1);
   const conditions: SQL[] = [];
@@ -170,7 +182,7 @@ export async function loadInventoryPage(filters: InventoryFilters): Promise<Inve
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
   const [accounts, setRows, countRows, rows] = await Promise.all([
-    loadAccounts(),
+    loadAccounts(userId),
     db
       .selectDistinct({ code: cardsTable.setCode, name: cardsTable.setName })
       .from(cardsTable)
@@ -187,9 +199,18 @@ export async function loadInventoryPage(filters: InventoryFilters): Promise<Inve
 
   const total = countRows[0]?.total ?? 0;
   const cardIds = rows.map((row) => row.id);
+  const accountIds = accounts.map((account) => account.id);
   const holdingRows =
-    cardIds.length > 0
-      ? await db.select().from(holdingsTable).where(inArray(holdingsTable.cardId, cardIds))
+    cardIds.length > 0 && accountIds.length > 0
+      ? await db
+          .select()
+          .from(holdingsTable)
+          .where(
+            and(
+              inArray(holdingsTable.cardId, cardIds),
+              inArray(holdingsTable.accountId, accountIds),
+            ),
+          )
       : [];
 
   const holdings = buildHoldings(holdingRows);
@@ -221,12 +242,22 @@ export async function catalogCardCount(): Promise<number> {
 
 export type DataStats = { accounts: number; holdings: number; transfers: number };
 
-export async function loadDataStats(): Promise<DataStats> {
+export async function loadDataStats(userId: string): Promise<DataStats> {
   const db = await getDb();
   const [accountRows, holdingRows, transferRows] = await Promise.all([
-    db.select({ total: sql<number>`count(*)::int` }).from(accountsTable),
-    db.select({ total: sql<number>`count(*)::int` }).from(holdingsTable),
-    db.select({ total: sql<number>`count(*)::int` }).from(transfersTable),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(accountsTable)
+      .where(eq(accountsTable.userId, userId)),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(holdingsTable)
+      .innerJoin(accountsTable, eq(accountsTable.id, holdingsTable.accountId))
+      .where(eq(accountsTable.userId, userId)),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(transfersTable)
+      .where(eq(transfersTable.userId, userId)),
   ]);
   return {
     accounts: accountRows[0]?.total ?? 0,

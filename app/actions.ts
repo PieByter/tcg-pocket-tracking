@@ -2,7 +2,7 @@
 
 import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb, type Db } from "@/db";
@@ -14,13 +14,13 @@ import {
   transfers,
 } from "@/db/schema";
 import type { Account, Card, Transfer } from "@/db/schema";
-import { checkPassword, passwordConfigured, sessionCookieOptions } from "@/lib/auth";
+import { requireUserId } from "@/lib/auth";
 import { defaultTarget } from "@/lib/cards";
 import { getSettings } from "@/lib/config";
 import { computeUsage } from "@/lib/domain";
 import { gameDayKey } from "@/lib/game-day";
 import { CONFIG_KEYS, parseSettings } from "@/lib/settings";
-import { SESSION_COOKIE, createSessionToken } from "@/lib/session";
+import { createSupabaseServerClient, supabaseConfigured } from "@/lib/supabase/server";
 import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, type MessageKey } from "@/lib/i18n";
 import { buildPlan } from "@/lib/planner";
 import { parseCollection, type ImportIssue, type ImportMode, type ImportRow } from "@/lib/import";
@@ -32,6 +32,7 @@ export type ActionResult = {
   params?: Record<string, string | number>;
 };
 export type LoginState = ActionResult | null;
+export type RegisterState = ActionResult | null;
 
 class ActionError extends Error {
   constructor(
@@ -65,22 +66,101 @@ function numberField(formData: FormData, key: string, fallback: number): number 
   return Number(raw);
 }
 
+const credentialsSchema = z.object({
+  email: z.string().trim().email().max(200),
+  password: z.string().min(8).max(200),
+});
+
+function safeNext(value: string): string {
+  return value.startsWith("/") && !value.startsWith("//") ? value : "/";
+}
+
+async function requestOrigin(): Promise<string> {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (configured) return configured.replace(/\/+$/, "");
+
+  const store = await headers();
+  const host = store.get("x-forwarded-host") ?? store.get("host") ?? "localhost:3000";
+  const isLocal = host.startsWith("localhost") || host.startsWith("127.0.0.1");
+  const proto = store.get("x-forwarded-proto") ?? (isLocal ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
+function authErrorKey(message: string): MessageKey {
+  const lower = message.toLowerCase();
+  if (lower.includes("email not confirmed")) return "login.emailNotConfirmed";
+  if (lower.includes("invalid login credentials")) return "login.invalidCredentials";
+  return "login.error";
+}
+
 export async function login(_previous: LoginState, formData: FormData): Promise<LoginState> {
-  if (!passwordConfigured()) {
+  if (!supabaseConfigured()) {
     return { ok: false, key: "login.notConfigured" };
   }
-  const password = String(formData.get("password") ?? "");
-  if (!checkPassword(password)) {
-    return { ok: false, key: "login.wrongPassword" };
+
+  const parsed = credentialsSchema.safeParse({
+    email: text(formData, "email").toLowerCase(),
+    password: String(formData.get("password") ?? ""),
+  });
+  if (!parsed.success) {
+    return { ok: false, key: "login.invalidCredentials" };
   }
-  const store = await cookies();
-  store.set(SESSION_COOKIE, createSessionToken(), sessionCookieOptions);
-  redirect("/");
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  if (error) {
+    return { ok: false, key: authErrorKey(error.message) };
+  }
+
+  redirect(safeNext(text(formData, "next")));
+}
+
+export async function register(
+  _previous: RegisterState,
+  formData: FormData,
+): Promise<RegisterState> {
+  if (!supabaseConfigured()) {
+    return { ok: false, key: "login.notConfigured" };
+  }
+
+  const email = text(formData, "email").toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  const confirm = String(formData.get("confirmPassword") ?? "");
+
+  const parsed = credentialsSchema.safeParse({ email, password });
+  if (!parsed.success) {
+    return { ok: false, key: "register.invalid" };
+  }
+  if (password !== confirm) {
+    return { ok: false, key: "register.passwordMismatch" };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const origin = await requestOrigin();
+  const { data, error } = await supabase.auth.signUp({
+    email: parsed.data.email,
+    password: parsed.data.password,
+    options: { emailRedirectTo: `${origin}/auth/callback` },
+  });
+
+  if (error) {
+    return {
+      ok: false,
+      key: error.message.toLowerCase().includes("already registered")
+        ? "register.emailTaken"
+        : "register.error",
+    };
+  }
+
+  if (data.session) {
+    redirect(safeNext(text(formData, "next")));
+  }
+  return { ok: true, key: "register.checkEmail" };
 }
 
 export async function logout(): Promise<void> {
-  const store = await cookies();
-  store.delete(SESSION_COOKIE);
+  const supabase = await createSupabaseServerClient();
+  await supabase.auth.signOut();
   redirect("/login");
 }
 
@@ -100,10 +180,11 @@ export async function changeLocale(formData: FormData): Promise<void> {
 export async function saveHoldings(
   edits: { accountId: string; cardId: string; qty: number; targetQty?: number }[],
 ): Promise<ActionResult> {
+  const userId = await requireUserId();
   try {
     if (edits.length === 0) return { ok: true, key: "action.holdings.none" };
     const db = await getDb();
-    const settings = await getSettings();
+    const settings = await getSettings(userId);
 
     const deduped = new Map<string, { accountId: string; cardId: string; qty: number; targetQty?: number }>();
     for (const edit of edits) {
@@ -113,6 +194,17 @@ export async function saveHoldings(
       deduped.set(`${edit.accountId}|${edit.cardId}`, { ...edit, qty, targetQty });
     }
 
+    const owned = await db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(
+        and(
+          eq(accounts.userId, userId),
+          inArray(accounts.id, [...new Set([...deduped.values()].map((row) => row.accountId))]),
+        ),
+      );
+    const ownedIds = new Set(owned.map((row) => row.id));
+
     const cardRows = await db
       .select()
       .from(cardsTable)
@@ -121,7 +213,7 @@ export async function saveHoldings(
 
     const values = [...deduped.values()].flatMap((edit) => {
       const card = cardMap.get(edit.cardId);
-      if (!card) return [];
+      if (!card || !ownedIds.has(edit.accountId)) return [];
       return [
         {
           accountId: edit.accountId,
@@ -188,6 +280,7 @@ const transferSchema = z.object({
 });
 
 export async function createTransfer(formData: FormData): Promise<ActionResult> {
+  const userId = await requireUserId();
   try {
     const input = transferSchema.parse({
       method: text(formData, "method"),
@@ -204,6 +297,18 @@ export async function createTransfer(formData: FormData): Promise<ActionResult> 
     }
 
     const db = await getDb();
+
+    const owned = await db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(
+        and(
+          eq(accounts.userId, userId),
+          inArray(accounts.id, [input.fromAccountId, input.toAccountId]),
+        ),
+      );
+    if (owned.length !== 2) throw new ActionError("error.accountNotFound");
+
     const [card] = await db.select().from(cardsTable).where(eq(cardsTable.id, input.cardOutId));
     if (!card) throw new ActionError("error.cardNotFound");
     if (input.method === "share" && !card.shareable) {
@@ -229,6 +334,7 @@ export async function createTransfer(formData: FormData): Promise<ActionResult> 
       .from(transfers)
       .where(
         and(
+          eq(transfers.userId, userId),
           eq(transfers.status, "planned"),
           eq(transfers.fromAccountId, input.fromAccountId),
           eq(transfers.toAccountId, input.toAccountId),
@@ -241,6 +347,7 @@ export async function createTransfer(formData: FormData): Promise<ActionResult> 
     }
 
     await db.insert(transfers).values({
+      userId,
       method: input.method,
       fromAccountId: input.fromAccountId,
       toAccountId: input.toAccountId,
@@ -258,52 +365,60 @@ export async function createTransfer(formData: FormData): Promise<ActionResult> 
   }
 }
 
-async function loadTransferForUpdate(tx: Db, id: string): Promise<Transfer> {
-  const [row] = await tx.select().from(transfers).where(eq(transfers.id, id)).for("update");
+async function loadTransferForUpdate(tx: Db, id: string, userId: string): Promise<Transfer> {
+  const [row] = await tx
+    .select()
+    .from(transfers)
+    .where(and(eq(transfers.id, id), eq(transfers.userId, userId)))
+    .for("update");
   if (!row) throw new ActionError("error.transferNotFound");
   return row;
 }
 
-async function lockAccounts(tx: Db, ids: string[]): Promise<Map<string, Account>> {
+async function lockAccounts(tx: Db, ids: string[], userId: string): Promise<Map<string, Account>> {
   const rows = await tx
     .select()
     .from(accounts)
-    .where(inArray(accounts.id, [...new Set(ids)]))
+    .where(and(eq(accounts.userId, userId), inArray(accounts.id, [...new Set(ids)])))
     .for("update");
   return new Map(rows.map((row) => [row.id, row]));
 }
 
-async function usageRows(tx: Db, accountIds: string[]) {
+async function usageRows(tx: Db, accountIds: string[], userId: string) {
   return tx
     .select()
     .from(transfers)
     .where(
-      or(
-        inArray(transfers.fromAccountId, accountIds),
-        inArray(transfers.toAccountId, accountIds),
+      and(
+        eq(transfers.userId, userId),
+        or(
+          inArray(transfers.fromAccountId, accountIds),
+          inArray(transfers.toAccountId, accountIds),
+        ),
       ),
     );
 }
 
 export async function markTransferSent(formData: FormData): Promise<ActionResult> {
+  const userId = await requireUserId();
   try {
     const id = text(formData, "id");
     const db = await getDb();
-    const settings = await getSettings();
+    const settings = await getSettings(userId);
     const today = gameDayKey(new Date(), settings);
 
     const result: ActionResult = await db.transaction(async (tx): Promise<ActionResult> => {
-      const transfer = await loadTransferForUpdate(tx as unknown as Db, id);
+      const transfer = await loadTransferForUpdate(tx as unknown as Db, id, userId);
       if (transfer.status === "sent") return { ok: true, key: "action.alreadySent" };
       if (transfer.status !== "planned") {
         throw new ActionError("error.onlyPlannedCanSend");
       }
 
-      await lockAccounts(tx as unknown as Db, [transfer.fromAccountId, transfer.toAccountId]);
+      await lockAccounts(tx as unknown as Db, [transfer.fromAccountId, transfer.toAccountId], userId);
       const rows = (await usageRows(tx as unknown as Db, [
         transfer.fromAccountId,
         transfer.toAccountId,
-      ])) as Transfer[];
+      ], userId)) as Transfer[];
       const usage = computeUsage(
         rows.filter((row) => row.id !== transfer.id),
         today,
@@ -353,14 +468,15 @@ export async function markTransferSent(formData: FormData): Promise<ActionResult
 }
 
 export async function confirmTransfer(formData: FormData): Promise<ActionResult> {
+  const userId = await requireUserId();
   try {
     const id = text(formData, "id");
     const db = await getDb();
-    const settings = await getSettings();
+    const settings = await getSettings(userId);
     const today = gameDayKey(new Date(), settings);
 
     const result: ActionResult = await db.transaction(async (tx): Promise<ActionResult> => {
-      const transfer = await loadTransferForUpdate(tx as unknown as Db, id);
+      const transfer = await loadTransferForUpdate(tx as unknown as Db, id, userId);
       if (transfer.status === "confirmed") {
         return { ok: true, key: "action.alreadyConfirmed" };
       }
@@ -368,11 +484,11 @@ export async function confirmTransfer(formData: FormData): Promise<ActionResult>
         throw new ActionError("error.onlySentCanConfirm");
       }
 
-      await lockAccounts(tx as unknown as Db, [transfer.fromAccountId, transfer.toAccountId]);
+      await lockAccounts(tx as unknown as Db, [transfer.fromAccountId, transfer.toAccountId], userId);
       const rows = (await usageRows(tx as unknown as Db, [
         transfer.fromAccountId,
         transfer.toAccountId,
-      ])) as Transfer[];
+      ], userId)) as Transfer[];
       const usage = computeUsage(
         rows.filter((row) => row.id !== transfer.id),
         today,
@@ -481,13 +597,20 @@ export async function confirmTransfer(formData: FormData): Promise<ActionResult>
 }
 
 export async function cancelTransfer(formData: FormData): Promise<ActionResult> {
+  const userId = await requireUserId();
   try {
     const id = text(formData, "id");
     const db = await getDb();
     const updated = await db
       .update(transfers)
       .set({ status: "cancelled", cancelledAt: new Date(), updatedAt: new Date() })
-      .where(and(eq(transfers.id, id), inArray(transfers.status, ["planned", "sent"])))
+      .where(
+        and(
+          eq(transfers.id, id),
+          eq(transfers.userId, userId),
+          inArray(transfers.status, ["planned", "sent"]),
+        ),
+      )
       .returning({ id: transfers.id });
     if (updated.length === 0) {
       throw new ActionError("error.cannotCancel");
@@ -510,6 +633,7 @@ const accountSchema = z.object({
 });
 
 export async function saveAccount(formData: FormData): Promise<ActionResult> {
+  const userId = await requireUserId();
   try {
     const rawId = text(formData, "id");
     const input = accountSchema.parse({
@@ -530,7 +654,10 @@ export async function saveAccount(formData: FormData): Promise<ActionResult> {
 
     const db = await getDb();
     if (input.id) {
-      const [existing] = await db.select().from(accounts).where(eq(accounts.id, input.id));
+      const [existing] = await db
+        .select()
+        .from(accounts)
+        .where(and(eq(accounts.id, input.id), eq(accounts.userId, userId)));
       if (!existing) throw new ActionError("error.accountNotFound");
 
       const stamina = input.tradeStamina ?? existing.tradeStamina;
@@ -549,10 +676,14 @@ export async function saveAccount(formData: FormData): Promise<ActionResult> {
           shinedust: dust,
           resourcesUpdatedAt: resourcesChanged ? new Date() : existing.resourcesUpdatedAt,
         })
-        .where(eq(accounts.id, input.id));
+        .where(and(eq(accounts.id, input.id), eq(accounts.userId, userId)));
     } else {
-      const existing = await db.select({ id: accounts.id }).from(accounts);
+      const existing = await db
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(eq(accounts.userId, userId));
       await db.insert(accounts).values({
+        userId,
         name: input.name,
         friendCode: input.friendCode ?? null,
         minEx: input.minEx,
@@ -571,6 +702,7 @@ export async function saveAccount(formData: FormData): Promise<ActionResult> {
 }
 
 export async function saveResources(formData: FormData): Promise<ActionResult> {
+  const userId = await requireUserId();
   try {
     const accountId = text(formData, "accountId");
     if (!accountId) throw new ActionError("error.accountNotFound");
@@ -585,7 +717,7 @@ export async function saveResources(formData: FormData): Promise<ActionResult> {
     const updated = await db
       .update(accounts)
       .set({ tradeStamina: stamina, shinedust, resourcesUpdatedAt: new Date() })
-      .where(eq(accounts.id, accountId))
+      .where(and(eq(accounts.id, accountId), eq(accounts.userId, userId)))
       .returning({ id: accounts.id });
     if (updated.length === 0) throw new ActionError("error.accountNotFound");
 
@@ -597,9 +729,10 @@ export async function saveResources(formData: FormData): Promise<ActionResult> {
 }
 
 export async function applyPlan(formData: FormData): Promise<ActionResult> {
+  const userId = await requireUserId();
   try {
     const days = Math.max(0, Math.trunc(numberField(formData, "days", 0)));
-    const ledger = await loadLedger();
+    const ledger = await loadLedger(userId);
     const plan = buildPlan({
       accounts: ledger.accounts,
       cards: ledger.cards,
@@ -628,6 +761,7 @@ export async function applyPlan(formData: FormData): Promise<ActionResult> {
       existing.add(key);
       return [
         {
+          userId,
           method: slot.method,
           fromAccountId: slot.from.id,
           toAccountId: slot.to.id,
@@ -706,7 +840,7 @@ async function existingHoldings(
   return map;
 }
 
-async function prepareImport(formData: FormData): Promise<PreparedImport> {
+async function prepareImport(formData: FormData, userId: string): Promise<PreparedImport> {
   const payload = String(formData.get("payload") ?? "");
   const mode: ImportMode = String(formData.get("mode") ?? "set") === "add" ? "add" : "set";
 
@@ -715,6 +849,7 @@ async function prepareImport(formData: FormData): Promise<PreparedImport> {
     db
       .select({ id: accounts.id, name: accounts.name, sortOrder: accounts.sortOrder })
       .from(accounts)
+      .where(eq(accounts.userId, userId))
       .orderBy(asc(accounts.sortOrder)),
     db
       .select({
@@ -725,7 +860,7 @@ async function prepareImport(formData: FormData): Promise<PreparedImport> {
         kind: cardsTable.kind,
       })
       .from(cardsTable),
-    getSettings(),
+    getSettings(userId),
   ]);
 
   const parsed = parseCollection(payload, accountRows, cardRows, mode);
@@ -802,11 +937,12 @@ function report(prepared: PreparedImport, ok: boolean, key: MessageKey): ImportR
 }
 
 export async function previewImport(formData: FormData): Promise<ImportReport> {
+  const userId = await requireUserId();
   try {
     if (!String(formData.get("payload") ?? "").trim()) {
       return { ok: false, key: "import.error.empty", issues: [], issueTotal: 0 };
     }
-    const prepared = await prepareImport(formData);
+    const prepared = await prepareImport(formData, userId);
     if (prepared.issueTotal > 0) return report(prepared, false, "import.needsFix");
     if (prepared.rows.length === 0) {
       return { ok: false, key: "import.error.empty", issues: [], issueTotal: 0 };
@@ -819,11 +955,12 @@ export async function previewImport(formData: FormData): Promise<ImportReport> {
 }
 
 export async function applyImport(formData: FormData): Promise<ImportReport> {
+  const userId = await requireUserId();
   try {
     if (!String(formData.get("payload") ?? "").trim()) {
       return { ok: false, key: "import.error.empty", issues: [], issueTotal: 0 };
     }
-    const prepared = await prepareImport(formData);
+    const prepared = await prepareImport(formData, userId);
     if (prepared.issueTotal > 0) return report(prepared, false, "import.needsFix");
     if (prepared.rows.length === 0) {
       return { ok: false, key: "import.error.empty", issues: [], issueTotal: 0 };
@@ -873,18 +1010,28 @@ export async function applyImport(formData: FormData): Promise<ImportReport> {
 }
 
 export async function deleteAccount(formData: FormData): Promise<ActionResult> {
+  const userId = await requireUserId();
   try {
     const id = text(formData, "id");
     const db = await getDb();
     const used = await db
       .select({ id: transfers.id })
       .from(transfers)
-      .where(or(eq(transfers.fromAccountId, id), eq(transfers.toAccountId, id)))
+      .where(
+        and(
+          eq(transfers.userId, userId),
+          or(eq(transfers.fromAccountId, id), eq(transfers.toAccountId, id)),
+        ),
+      )
       .limit(1);
     if (used.length > 0) {
       throw new ActionError("error.accountHasHistory");
     }
-    await db.delete(accounts).where(eq(accounts.id, id));
+    const deleted = await db
+      .delete(accounts)
+      .where(and(eq(accounts.id, id), eq(accounts.userId, userId)))
+      .returning({ id: accounts.id });
+    if (deleted.length === 0) throw new ActionError("error.accountNotFound");
     refresh();
     return { ok: true, key: "action.account.deleted" };
   } catch (error) {
@@ -893,9 +1040,10 @@ export async function deleteAccount(formData: FormData): Promise<ActionResult> {
 }
 
 export async function saveSettings(formData: FormData): Promise<ActionResult> {
+  const userId = await requireUserId();
   try {
     const db = await getDb();
-    const current = await db.select().from(appConfig);
+    const current = await db.select().from(appConfig).where(eq(appConfig.userId, userId));
     const settings = parseSettings(current);
 
     const next = {
@@ -942,9 +1090,9 @@ export async function saveSettings(formData: FormData): Promise<ActionResult> {
       if (field === "tradeCosts") continue;
       await db
         .insert(appConfig)
-        .values({ key: CONFIG_KEYS[field], value: JSON.stringify(value) })
+        .values({ userId, key: CONFIG_KEYS[field], value: JSON.stringify(value) })
         .onConflictDoUpdate({
-          target: appConfig.key,
+          target: [appConfig.userId, appConfig.key],
           set: { value: JSON.stringify(value), updatedAt: new Date() },
         });
     }
