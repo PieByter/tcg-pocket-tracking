@@ -89,6 +89,20 @@ Buka <http://localhost:3000> dan login dengan `APP_PASSWORD`.
 | `npm run db:seed` | Upsert katalog kartu + akun default + config |
 | `npm run db:seed:demo` | Seed + isi koleksi contoh |
 
+## Bahasa / Language
+
+Aplikasi mendukung **English (default)** dan **Bahasa Indonesia**. Pilihan bahasa disimpan di cookie `pocketledger_locale` (`en` | `id`), bukan di URL, sehingga tidak ada duplikasi route.
+
+- Tanpa cookie, UI tampil dalam English.
+- Tombol **EN / ID** ada di header aplikasi dan di halaman login.
+- Semua teks — termasuk pesan Server Action, alasan planner, dan label status — ada di kamus:
+  - [lib/i18n/en.ts](./lib/i18n/en.ts) — sumber kebenaran untuk daftar key.
+  - [lib/i18n/id.ts](./lib/i18n/id.ts) — bertipe `Record<MessageKey, string>`, jadi key yang hilang/berlebih langsung gagal type-check.
+- Tanggal dan angka mengikuti locale (`en-GB` / `id-ID`).
+- Server Component memakai `getI18n()` ([lib/i18n/server.ts](./lib/i18n/server.ts)), Client Component memakai `useI18n()` dari [components/i18n-provider.tsx](./components/i18n-provider.tsx).
+
+Menambah bahasa baru: buat `lib/i18n/<kode>.ts` dengan semua key, daftarkan di `LOCALES` + `dictionaries` ([lib/i18n/index.ts](./lib/i18n/index.ts)), dan perluas tipe `Locale`.
+
 ## Struktur
 
 ```
@@ -114,6 +128,7 @@ lib/
   settings.ts             default & parsing konfigurasi
   queries.ts              query baca (ledger, inventory)
   auth.ts / session.ts    sesi cookie
+  i18n/                   kamus EN/ID + helper server & tipe
 drizzle/                  migrasi SQL hasil drizzle-kit
 data/catalog.json         katalog kartu (seed)
 scripts/                  build-catalog, seed

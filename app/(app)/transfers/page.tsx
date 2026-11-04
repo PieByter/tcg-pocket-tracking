@@ -2,22 +2,30 @@ import Link from "next/link";
 import { Icon } from "@/components/icon";
 import { TransferRow } from "@/components/transfer-row";
 import { EmptyState, PageHeader, SectionHeading, StatCard } from "@/components/ui";
+import { getI18n } from "@/lib/i18n/server";
 import { loadLedger } from "@/lib/queries";
+import type { MessageKey } from "@/lib/i18n";
 import type { TransferStatus } from "@/db/schema";
 
-export const metadata = { title: "Riwayat Transfer — PocketLedger" };
+export async function generateMetadata() {
+  const { t } = await getI18n();
+  return { title: t("transfers.metaTitle") };
+}
 
-const FILTERS: { value: "all" | TransferStatus; label: string }[] = [
-  { value: "all", label: "Semua" },
-  { value: "planned", label: "Planned" },
-  { value: "sent", label: "In flight" },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "cancelled", label: "Cancelled" },
+const FILTERS: { value: "all" | TransferStatus; key: MessageKey }[] = [
+  { value: "all", key: "transfers.filter.all" },
+  { value: "planned", key: "transfer.status.planned" },
+  { value: "sent", key: "transfer.status.sent" },
+  { value: "confirmed", key: "transfer.status.confirmed" },
+  { value: "cancelled", key: "transfer.status.cancelled" },
 ];
 
 export default async function TransfersPage(props: PageProps<"/transfers">) {
-  const searchParams = await props.searchParams;
-  const ledger = await loadLedger();
+  const [searchParams, ledger, { t }] = await Promise.all([
+    props.searchParams,
+    loadLedger(),
+    getI18n(),
+  ]);
   const status = (typeof searchParams.status === "string" ? searchParams.status : "all") as
     | "all"
     | TransferStatus;
@@ -33,22 +41,46 @@ export default async function TransfersPage(props: PageProps<"/transfers">) {
   return (
     <div className="space-y-5">
       <PageHeader
-        eyebrow="Append-only vault ledger · F14–F17"
-        title="Riwayat Transfer"
-        description="Riwayat tidak dihapus. Koreksi dilakukan dengan membuat transfer baru; konfirmasi bersifat idempoten dan atomik."
+        eyebrow={t("transfers.eyebrow")}
+        title={t("transfers.title")}
+        description={t("transfers.description")}
         actions={
           <Link href="/matcher" className="btn-primary">
             <Icon name="plus" className="h-4 w-4" />
-            Transfer baru
+            {t("transfers.action.new")}
           </Link>
         }
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Planned" value={counts.planned} hint="menunggu eksekusi" tone="secondary" icon="clock" />
-        <StatCard label="In flight" value={counts.sent} hint="sudah dikirim di game" tone="primary" icon="send" />
-        <StatCard label="Confirmed" value={counts.confirmed} hint="kepemilikan tersinkron" tone="success" icon="shield" />
-        <StatCard label="Cancelled" value={counts.cancelled} hint="arsip" tone="tertiary" icon="x" />
+        <StatCard
+          label={t("transfer.status.planned")}
+          value={counts.planned}
+          hint={t("transfers.kpi.planned.hint")}
+          tone="secondary"
+          icon="clock"
+        />
+        <StatCard
+          label={t("transfer.status.sent")}
+          value={counts.sent}
+          hint={t("transfers.kpi.sent.hint")}
+          tone="primary"
+          icon="send"
+        />
+        <StatCard
+          label={t("transfer.status.confirmed")}
+          value={counts.confirmed}
+          hint={t("transfers.kpi.confirmed.hint")}
+          tone="success"
+          icon="shield"
+        />
+        <StatCard
+          label={t("transfer.status.cancelled")}
+          value={counts.cancelled}
+          hint={t("transfers.kpi.cancelled.hint")}
+          tone="tertiary"
+          icon="x"
+        />
       </div>
 
       <div className="flex flex-wrap gap-1.5">
@@ -65,7 +97,7 @@ export default async function TransfersPage(props: PageProps<"/transfers">) {
                   : "border-white/10 bg-white/5 text-on-surface-variant hover:text-on-surface"
               }`}
             >
-              {filter.label}
+              {t(filter.key)}
             </Link>
           );
         })}
@@ -73,32 +105,34 @@ export default async function TransfersPage(props: PageProps<"/transfers">) {
 
       <section>
         <SectionHeading
-          title="Ledger event"
-          subtitle="Terbaru di atas. Tandai terkirim setelah eksekusi di game, lalu konfirmasi agar stok berubah."
-          badge={`${rows.length} event`}
+          title={t("transfers.list.title")}
+          subtitle={t("transfers.list.subtitle")}
+          badge={t("transfers.list.badge", { count: rows.length })}
         />
         <div className="panel overflow-hidden">
           {rows.length === 0 ? (
             <EmptyState
               icon="repeat"
-              title="Belum ada event"
-              description="Buat rencana transfer dari matcher atau planner untuk memulai ledger."
+              title={t("transfers.empty.title")}
+              description={t("transfers.empty.body")}
               action={
                 <Link href="/matcher" className="btn-primary">
-                  Buka matcher
+                  {t("transfers.empty.action")}
                 </Link>
               }
             />
           ) : (
             rows.map((transfer) => (
-              <TransferRow key={transfer.id} transfer={transfer} timeZone={ledger.settings.timeZone} />
+              <TransferRow
+                key={transfer.id}
+                transfer={transfer}
+                timeZone={ledger.settings.timeZone}
+              />
             ))
           )}
         </div>
         {ledger.transfers.length >= 200 && (
-          <p className="mt-2 text-body-sm text-outline">
-            Menampilkan 200 event terbaru. Arsip lebih lama tetap tersimpan di database.
-          </p>
+          <p className="mt-2 text-body-sm text-outline">{t("transfers.archiveNote")}</p>
         )}
       </section>
     </div>

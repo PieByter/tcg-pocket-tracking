@@ -21,22 +21,35 @@ import { computeUsage } from "@/lib/domain";
 import { gameDayKey } from "@/lib/game-day";
 import { CONFIG_KEYS, parseSettings } from "@/lib/settings";
 import { SESSION_COOKIE, createSessionToken } from "@/lib/session";
+import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, type MessageKey } from "@/lib/i18n";
 
-export type ActionResult = { ok: boolean; message: string };
+export type ActionResult = {
+  ok: boolean;
+  key: MessageKey;
+  params?: Record<string, string | number>;
+};
 export type LoginState = ActionResult | null;
 
-class ActionError extends Error {}
+class ActionError extends Error {
+  constructor(
+    readonly key: MessageKey,
+    readonly params?: Record<string, string | number>,
+  ) {
+    super(key);
+  }
+}
 
 const refresh = () => revalidatePath("/", "layout");
 
 function toResult(error: unknown): ActionResult {
-  if (error instanceof ActionError) return { ok: false, message: error.message };
+  if (error instanceof ActionError) {
+    return { ok: false, key: error.key, params: error.params };
+  }
   if (error instanceof z.ZodError) {
-    return { ok: false, message: error.issues[0]?.message ?? "Input tidak valid." };
+    return { ok: false, key: "error.invalidInput" };
   }
   console.error(error);
-  const message = error instanceof Error ? error.message : "Terjadi kesalahan.";
-  return { ok: false, message };
+  return { ok: false, key: "error.generic" };
 }
 
 function text(formData: FormData, key: string): string {
@@ -51,11 +64,11 @@ function numberField(formData: FormData, key: string, fallback: number): number 
 
 export async function login(_previous: LoginState, formData: FormData): Promise<LoginState> {
   if (!passwordConfigured()) {
-    return { ok: false, message: "APP_PASSWORD belum diset di environment." };
+    return { ok: false, key: "login.notConfigured" };
   }
   const password = String(formData.get("password") ?? "");
   if (!checkPassword(password)) {
-    return { ok: false, message: "Password salah." };
+    return { ok: false, key: "login.wrongPassword" };
   }
   const store = await cookies();
   store.set(SESSION_COOKIE, createSessionToken(), sessionCookieOptions);
@@ -68,11 +81,24 @@ export async function logout(): Promise<void> {
   redirect("/login");
 }
 
+export async function changeLocale(formData: FormData): Promise<void> {
+  const value = String(formData.get("locale") ?? "");
+  const store = await cookies();
+  store.set(LOCALE_COOKIE, isLocale(value) ? value : DEFAULT_LOCALE, {
+    path: "/",
+    sameSite: "lax",
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 365 * 24 * 60 * 60,
+  });
+  refresh();
+}
+
 export async function saveHoldings(
   edits: { accountId: string; cardId: string; qty: number; targetQty?: number }[],
 ): Promise<ActionResult> {
   try {
-    if (edits.length === 0) return { ok: true, message: "Tidak ada perubahan." };
+    if (edits.length === 0) return { ok: true, key: "action.holdings.none" };
     const db = await getDb();
     const settings = await getSettings();
 
@@ -138,7 +164,11 @@ export async function saveHoldings(
     }
 
     refresh();
-    return { ok: true, message: `${values.length} kartu diperbarui.` };
+    return {
+      ok: true,
+      key: "action.holdings.saved",
+      params: { count: values.length },
+    };
   } catch (error) {
     return toResult(error);
   }
@@ -167,27 +197,27 @@ export async function createTransfer(formData: FormData): Promise<ActionResult> 
     });
 
     if (input.fromAccountId === input.toAccountId) {
-      throw new ActionError("Akun pemberi dan penerima harus berbeda.");
+      throw new ActionError("error.sameAccount");
     }
 
     const db = await getDb();
     const [card] = await db.select().from(cardsTable).where(eq(cardsTable.id, input.cardOutId));
-    if (!card) throw new ActionError("Kartu tidak ditemukan.");
+    if (!card) throw new ActionError("error.cardNotFound");
     if (input.method === "share" && !card.shareable) {
-      throw new ActionError("Kartu ini tidak bisa di-Share.");
+      throw new ActionError("error.shareNotAllowed");
     }
     if (input.method === "trade" && !card.tradable) {
-      throw new ActionError("Kartu ini tidak bisa di-Trade.");
+      throw new ActionError("error.tradeNotAllowed");
     }
 
     let cardIn: Card | undefined;
     if (input.method === "trade") {
-      if (!input.cardInId) throw new ActionError("Trade butuh kartu pengganti.");
+      if (!input.cardInId) throw new ActionError("error.tradeNeedsCard");
       [cardIn] = await db.select().from(cardsTable).where(eq(cardsTable.id, input.cardInId));
-      if (!cardIn) throw new ActionError("Kartu pengganti tidak ditemukan.");
-      if (!cardIn.tradable) throw new ActionError("Kartu pengganti tidak bisa di-Trade.");
+      if (!cardIn) throw new ActionError("error.tradeBackNotFound");
+      if (!cardIn.tradable) throw new ActionError("error.tradeBackNotTradable");
       if (cardIn.rarityCode !== card.rarityCode) {
-        throw new ActionError("Trade harus sepadan rarity.");
+        throw new ActionError("error.tradeRarityMismatch");
       }
     }
 
@@ -204,7 +234,7 @@ export async function createTransfer(formData: FormData): Promise<ActionResult> 
       )
       .limit(1);
     if (duplicate.length > 0) {
-      return { ok: true, message: "Rencana serupa sudah ada." };
+      return { ok: true, key: "action.transfer.duplicate" };
     }
 
     await db.insert(transfers).values({
@@ -219,7 +249,7 @@ export async function createTransfer(formData: FormData): Promise<ActionResult> 
     });
 
     refresh();
-    return { ok: true, message: "Rencana transfer dibuat." };
+    return { ok: true, key: "action.transfer.created" };
   } catch (error) {
     return toResult(error);
   }
@@ -227,7 +257,7 @@ export async function createTransfer(formData: FormData): Promise<ActionResult> 
 
 async function loadTransferForUpdate(tx: Db, id: string): Promise<Transfer> {
   const [row] = await tx.select().from(transfers).where(eq(transfers.id, id)).for("update");
-  if (!row) throw new ActionError("Transfer tidak ditemukan.");
+  if (!row) throw new ActionError("error.transferNotFound");
   return row;
 }
 
@@ -259,11 +289,11 @@ export async function markTransferSent(formData: FormData): Promise<ActionResult
     const settings = await getSettings();
     const today = gameDayKey(new Date(), settings);
 
-    const result = await db.transaction(async (tx) => {
+    const result: ActionResult = await db.transaction(async (tx): Promise<ActionResult> => {
       const transfer = await loadTransferForUpdate(tx as unknown as Db, id);
-      if (transfer.status === "sent") return { ok: true, message: "Sudah ditandai terkirim." };
+      if (transfer.status === "sent") return { ok: true, key: "action.alreadySent" };
       if (transfer.status !== "planned") {
-        throw new ActionError("Hanya rencana yang bisa ditandai terkirim.");
+        throw new ActionError("error.onlyPlannedCanSend");
       }
 
       await lockAccounts(tx as unknown as Db, [transfer.fromAccountId, transfer.toAccountId]);
@@ -278,14 +308,14 @@ export async function markTransferSent(formData: FormData): Promise<ActionResult
 
       if (transfer.method === "share") {
         if ((usage.receivedShare.get(transfer.toAccountId) ?? 0) >= settings.shareReceivePerDay) {
-          throw new ActionError(
-            `Kuota terima ${settings.shareReceivePerDay} kartu/hari untuk akun penerima sudah habis.`,
-          );
+          throw new ActionError("error.receiveQuotaFull", {
+            limit: settings.shareReceivePerDay,
+          });
         }
         const pairCount =
           usage.sharePairs.get(`${transfer.fromAccountId}|${transfer.toAccountId}`) ?? 0;
         if (pairCount >= settings.shareSendPerPairPerDay) {
-          throw new ActionError("Kuota kirim ke akun ini untuk hari ini sudah habis.");
+          throw new ActionError("error.pairQuotaFull");
         }
       } else {
         if (
@@ -294,13 +324,13 @@ export async function markTransferSent(formData: FormData): Promise<ActionResult
           (usage.tradesPerAccount.get(transfer.toAccountId) ?? 0) >=
             settings.tradePerAccountPerDay
         ) {
-          throw new ActionError("Kuota trade harian akun ini sudah habis.");
+          throw new ActionError("error.tradeQuotaFull");
         }
         const last =
           usage.lastTradePerPair.get(`${transfer.fromAccountId}|${transfer.toAccountId}`) ??
           usage.lastTradePerPair.get(`${transfer.toAccountId}|${transfer.fromAccountId}`);
         if (last === today && settings.tradePairCooldownDays > 0) {
-          throw new ActionError("Pasangan akun ini sedang cooldown trade.");
+          throw new ActionError("error.tradePairCooldown");
         }
       }
 
@@ -309,7 +339,7 @@ export async function markTransferSent(formData: FormData): Promise<ActionResult
         .set({ status: "sent", gameDay: today, sentAt: new Date(), updatedAt: new Date() })
         .where(and(eq(transfers.id, transfer.id), eq(transfers.status, "planned")));
 
-      return { ok: true, message: "Ditandai terkirim. Konfirmasi setelah diterima di game." };
+      return { ok: true, key: "action.sent" };
     });
 
     refresh();
@@ -326,13 +356,13 @@ export async function confirmTransfer(formData: FormData): Promise<ActionResult>
     const settings = await getSettings();
     const today = gameDayKey(new Date(), settings);
 
-    const result = await db.transaction(async (tx) => {
+    const result: ActionResult = await db.transaction(async (tx): Promise<ActionResult> => {
       const transfer = await loadTransferForUpdate(tx as unknown as Db, id);
       if (transfer.status === "confirmed") {
-        return { ok: true, message: "Transfer sudah dikonfirmasi sebelumnya." };
+        return { ok: true, key: "action.alreadyConfirmed" };
       }
       if (transfer.status !== "sent") {
-        throw new ActionError("Tandai terkirim dulu sebelum konfirmasi.");
+        throw new ActionError("error.onlySentCanConfirm");
       }
 
       await lockAccounts(tx as unknown as Db, [transfer.fromAccountId, transfer.toAccountId]);
@@ -347,12 +377,12 @@ export async function confirmTransfer(formData: FormData): Promise<ActionResult>
 
       if (transfer.method === "share") {
         if ((usage.receivedShare.get(transfer.toAccountId) ?? 0) >= settings.shareReceivePerDay) {
-          throw new ActionError("Batas penerimaan harian akun ini sudah terpakai transfer lain.");
+          throw new ActionError("error.receiveQuotaConflict");
         }
         const pairCount =
           usage.sharePairs.get(`${transfer.fromAccountId}|${transfer.toAccountId}`) ?? 0;
         if (pairCount >= settings.shareSendPerPairPerDay) {
-          throw new ActionError("Batas kirim harian pasangan akun ini sudah terpakai.");
+          throw new ActionError("error.pairQuotaConflict");
         }
       } else {
         if (
@@ -361,13 +391,13 @@ export async function confirmTransfer(formData: FormData): Promise<ActionResult>
           (usage.tradesPerAccount.get(transfer.toAccountId) ?? 0) >=
             settings.tradePerAccountPerDay
         ) {
-          throw new ActionError("Batas trade harian akun ini sudah terpakai transfer lain.");
+          throw new ActionError("error.tradeQuotaConflict");
         }
         const lastTrade =
           usage.lastTradePerPair.get(`${transfer.fromAccountId}|${transfer.toAccountId}`) ??
           usage.lastTradePerPair.get(`${transfer.toAccountId}|${transfer.fromAccountId}`);
         if (lastTrade === today && settings.tradePairCooldownDays > 0) {
-          throw new ActionError("Pasangan akun ini masih dalam cooldown trade.");
+          throw new ActionError("error.tradePairCooldown");
         }
       }
 
@@ -382,7 +412,7 @@ export async function confirmTransfer(formData: FormData): Promise<ActionResult>
         .where(and(eq(transfers.id, transfer.id), eq(transfers.status, "sent")))
         .returning({ id: transfers.id });
       if (claimed.length === 0) {
-        throw new ActionError("Transfer sudah diproses oleh permintaan lain.");
+        throw new ActionError("error.transferClaimed");
       }
 
       const cardRows = await tx
@@ -408,7 +438,7 @@ export async function confirmTransfer(formData: FormData): Promise<ActionResult>
           .for("update");
 
         if (!existing) {
-          if (delta < 0) throw new ActionError("Stok kartu tidak cukup untuk transfer ini.");
+          if (delta < 0) throw new ActionError("error.insufficientStock");
           const card = cardMap.get(cardId);
           await tx.insert(holdings).values({
             accountId,
@@ -421,7 +451,7 @@ export async function confirmTransfer(formData: FormData): Promise<ActionResult>
 
         const nextQty = existing.qty + delta;
         if (nextQty < 0) {
-          throw new ActionError("Stok kartu tidak cukup untuk transfer ini.");
+          throw new ActionError("error.insufficientStock");
         }
         await tx
           .update(holdings)
@@ -437,7 +467,7 @@ export async function confirmTransfer(formData: FormData): Promise<ActionResult>
         await moveCard(transfer.fromAccountId, transfer.cardInId, 1);
       }
 
-      return { ok: true, message: "Transfer dikonfirmasi. Kepemilikan diperbarui." };
+      return { ok: true, key: "action.confirmed" };
     });
 
     refresh();
@@ -457,10 +487,10 @@ export async function cancelTransfer(formData: FormData): Promise<ActionResult> 
       .where(and(eq(transfers.id, id), inArray(transfers.status, ["planned", "sent"])))
       .returning({ id: transfers.id });
     if (updated.length === 0) {
-      throw new ActionError("Transfer tidak bisa dibatalkan.");
+      throw new ActionError("error.cannotCancel");
     }
     refresh();
-    return { ok: true, message: "Transfer dibatalkan." };
+    return { ok: true, key: "action.cancelled" };
   } catch (error) {
     return toResult(error);
   }
@@ -468,7 +498,7 @@ export async function cancelTransfer(formData: FormData): Promise<ActionResult> 
 
 const accountSchema = z.object({
   id: z.string().uuid().optional(),
-  name: z.string().min(1, "Nama akun wajib diisi.").max(60),
+  name: z.string().min(1).max(60),
   friendCode: z.string().max(30).optional(),
   minEx: z.number().int().min(0).max(20),
   notes: z.string().max(280).optional(),
@@ -508,7 +538,7 @@ export async function saveAccount(formData: FormData): Promise<ActionResult> {
     }
 
     refresh();
-    return { ok: true, message: "Akun disimpan." };
+    return { ok: true, key: "action.account.saved" };
   } catch (error) {
     return toResult(error);
   }
@@ -524,11 +554,11 @@ export async function deleteAccount(formData: FormData): Promise<ActionResult> {
       .where(or(eq(transfers.fromAccountId, id), eq(transfers.toAccountId, id)))
       .limit(1);
     if (used.length > 0) {
-      throw new ActionError("Akun masih dipakai di riwayat transfer. Batalkan/arsipkan dulu.");
+      throw new ActionError("error.accountHasHistory");
     }
     await db.delete(accounts).where(eq(accounts.id, id));
     refresh();
-    return { ok: true, message: "Akun dihapus." };
+    return { ok: true, key: "action.account.deleted" };
   } catch (error) {
     return toResult(error);
   }
@@ -582,7 +612,7 @@ export async function saveSettings(formData: FormData): Promise<ActionResult> {
     }
 
     refresh();
-    return { ok: true, message: "Aturan disimpan." };
+    return { ok: true, key: "action.settings.saved" };
   } catch (error) {
     return toResult(error);
   }

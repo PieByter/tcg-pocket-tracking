@@ -7,13 +7,17 @@ import { Icon } from "@/components/icon";
 import { EmptyState, PageHeader, SectionHeading, StatCard } from "@/components/ui";
 import { accountShortName, formatDateTime } from "@/lib/format";
 import { relativeDayLabel } from "@/lib/game-day";
+import { getI18n } from "@/lib/i18n/server";
 import { buildPlan, planSummaryByDay } from "@/lib/planner";
 import { loadLedger } from "@/lib/queries";
 
-export const metadata = { title: "Daily Transfer Planner — PocketLedger" };
+export async function generateMetadata() {
+  const { t } = await getI18n();
+  return { title: t("planner.metaTitle") };
+}
 
 export default async function PlannerPage() {
-  const ledger = await loadLedger();
+  const [ledger, { locale, t }] = await Promise.all([loadLedger(), getI18n()]);
   const { accounts, cards, holdings, settings, usage } = ledger;
 
   const plan = buildPlan({
@@ -29,80 +33,94 @@ export default async function PlannerPage() {
   const days = [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b));
   const shareSlotsLeft = Math.max(
     0,
-    usage.gameDay === ledger.today
-      ? accounts.length * settings.shareReceivePerDay -
-          [...usage.receivedShare.values()].reduce((total, value) => total + value, 0)
-      : accounts.length * settings.shareReceivePerDay,
+    accounts.length * settings.shareReceivePerDay -
+      [...usage.receivedShare.values()].reduce((total, value) => total + value, 0),
   );
+  const resetTime = `${String(settings.resetHour).padStart(2, "0")}:00`;
+  const exDeficitLeft = plan.remaining.reduce((total, item) => total + item.exDeficit, 0);
+  const trainerDeficitLeft = plan.remaining.reduce((total, item) => total + item.trainerDeficit, 0);
+
+  const rules = [
+    t("planner.rules.shareReceive", { count: settings.shareReceivePerDay }),
+    t("planner.rules.sharePair", { count: settings.shareSendPerPairPerDay }),
+    t("planner.rules.trade", {
+      count: settings.tradePerAccountPerDay,
+      cooldown: settings.tradePairCooldownDays,
+    }),
+    t("planner.rules.reset", { time: resetTime, timeZone: settings.timeZone }),
+    t("planner.rules.immovable"),
+  ];
 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="F14 · F15 · F16 · F18 · F19 core engine · greedy dispatch matrix"
-        title="Daily Transfer Planner"
-        description="Algoritma greedy menyusun jadwal paling cepat untuk menutup defisit ex dan trainer, mematuhi batas Share per akun per hari serta kuota Trade."
+        eyebrow={t("planner.eyebrow")}
+        title={t("planner.title")}
+        description={t("planner.description")}
         actions={
           <Link href="/matcher" className="btn-secondary">
             <Icon name="swap" className="h-4 w-4" />
-            Matcher manual
+            {t("planner.action.matcher")}
           </Link>
         }
       />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Estimasi solusi"
-          value={`${plan.daysUsed} hari`}
-          hint={plan.feasible ? "hingga nol defisit" : "masih ada sisa defisit"}
+          label={t("planner.kpi.days.label")}
+          value={t("planner.kpi.days.value", { days: plan.daysUsed })}
+          hint={t(plan.feasible ? "planner.kpi.days.hint" : "planner.kpi.days.hintOpen")}
           tone={plan.feasible ? "primary" : "secondary"}
           icon="sparkles"
-          detail={`${plan.totalSlots} slot transfer dijadwalkan`}
+          detail={t("planner.kpi.days.detail", { count: plan.totalSlots })}
         />
         <StatCard
-          label="Sisa kuota share"
+          label={t("planner.kpi.share.label")}
           value={`${shareSlotsLeft}/${accounts.length * settings.shareReceivePerDay}`}
-          hint="slot hari ini"
+          hint={t("planner.kpi.share.hint")}
           tone="primary"
           icon="clock"
-          detail={`Reset ${String(settings.resetHour).padStart(2, "0")}:00 ${settings.timeZone}`}
+          detail={t("planner.kpi.share.detail", { time: resetTime, timeZone: settings.timeZone })}
         />
         <StatCard
-          label="Defisit ex tersisa"
-          value={plan.remaining.reduce((total, item) => total + item.exDeficit, 0)}
-          hint="setelah jadwal dijalankan"
-          tone={plan.remaining.some((item) => item.exDeficit > 0) ? "secondary" : "success"}
+          label={t("planner.kpi.ex.label")}
+          value={exDeficitLeft}
+          hint={t("planner.kpi.ex.hint")}
+          tone={exDeficitLeft > 0 ? "secondary" : "success"}
           icon="alert"
-          detail={plan.remaining
-            .filter((item) => item.exDeficit > 0)
-            .map((item) => `${accountShortName(item.account.name)} (${item.exDeficit})`)
-            .join(" · ") || "Semua akun memenuhi minimal ex"}
+          detail={
+            plan.remaining
+              .filter((item) => item.exDeficit > 0)
+              .map((item) => `${accountShortName(item.account.name)} (${item.exDeficit})`)
+              .join(" · ") || t("planner.kpi.ex.detail")
+          }
         />
         <StatCard
-          label="Defisit trainer"
-          value={plan.remaining.reduce((total, item) => total + item.trainerDeficit, 0)}
-          hint="kartu di bawah target"
-          tone={plan.remaining.some((item) => item.trainerDeficit > 0) ? "tertiary" : "success"}
+          label={t("planner.kpi.trainer.label")}
+          value={trainerDeficitLeft}
+          hint={t("planner.kpi.trainer.hint")}
+          tone={trainerDeficitLeft > 0 ? "tertiary" : "success"}
           icon="matrix"
-          detail={`Horizon ${settings.plannerHorizonDays} hari`}
+          detail={t("planner.kpi.trainer.detail", { days: settings.plannerHorizonDays })}
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2.1fr)_minmax(0,1fr)]">
         <section className="space-y-4">
           <SectionHeading
-            title="Jadwal harian"
-            subtitle="Urutan prioritas: defisit ex terbesar, lalu trainer. Share dipakai lebih dulu; Trade hanya bila kartu tidak bisa di-Share."
-            badge={`${days.length} hari terpakai`}
+            title={t("planner.list.title")}
+            subtitle={t("planner.list.subtitle")}
+            badge={t("planner.list.badge", { count: days.length })}
           />
 
           {days.length === 0 ? (
             <EmptyState
               icon="check"
-              title="Tidak ada defisit yang bisa dijadwalkan"
-              description="Semua target terpenuhi, atau semua kartu yang dibutuhkan sudah habis di akun pemberi. Cek Inventory Matrix untuk memastikan koleksi sudah dicatat."
+              title={t("planner.list.emptyTitle")}
+              description={t("planner.list.emptyBody")}
               action={
                 <Link href="/inventory" className="btn-secondary">
-                  Buka Inventory Matrix
+                  {t("planner.list.emptyAction")}
                 </Link>
               }
             />
@@ -112,20 +130,23 @@ export default async function PlannerPage() {
                 <header className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.07] bg-surface-container-lowest/60 px-3 py-2">
                   <div className="flex items-center gap-2">
                     <span className="grid h-8 w-12 place-items-center rounded border border-primary/30 bg-primary/10 font-mono text-label-md text-primary">
-                      H{slots[0].dayIndex + 1}
+                      {t("planner.dayBadge", { index: slots[0].dayIndex + 1 })}
                     </span>
                     <div>
                       <p className="font-display text-sm text-on-surface">
-                        {relativeDayLabel(day, ledger.today)} · {day}
+                        {relativeDayLabel(day, ledger.today, locale, t)} · {day}
                       </p>
                       <p className="font-mono text-label-sm text-outline">
-                        {slots.length} slot · {slots.filter((slot) => slot.method === "share").length} share ·{" "}
-                        {slots.filter((slot) => slot.method === "trade").length} trade
+                        {t("planner.daySlots", {
+                          count: slots.length,
+                          share: slots.filter((slot) => slot.method === "share").length,
+                          trade: slots.filter((slot) => slot.method === "trade").length,
+                        })}
                       </p>
                     </div>
                   </div>
                   <span className="chip border-white/10 bg-white/5 text-on-surface-variant">
-                    {settings.shareReceivePerDay} terima / akun
+                    {t("planner.dayQuota", { count: settings.shareReceivePerDay })}
                   </span>
                 </header>
 
@@ -138,9 +159,15 @@ export default async function PlannerPage() {
                         transfer.toAccountId === slot.to.id &&
                         transfer.cardOutId === slot.card.id,
                     );
+                    const reason = t(
+                      slot.reason === "ex" ? "planner.reason.ex" : "planner.reason.trainer",
+                    );
 
                     return (
-                      <li key={`${day}-${slot.card.id}-${slot.to.id}`} className="border-b border-white/[0.05] p-3 last:border-b-0">
+                      <li
+                        key={`${day}-${slot.card.id}-${slot.to.id}`}
+                        className="border-b border-white/[0.05] p-3 last:border-b-0"
+                      >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                           <div className="flex items-center gap-3 sm:w-32">
                             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/5 font-mono text-label-md text-secondary">
@@ -163,19 +190,25 @@ export default async function PlannerPage() {
                             <p className="mt-0.5 truncate font-mono text-label-sm text-outline">
                               {accountShortName(slot.from.name)} → {accountShortName(slot.to.name)} ·{" "}
                               {slot.card.setCode}-{String(slot.card.number).padStart(3, "0")}
-                              {slot.cost > 0 ? ` · ${slot.cost.toLocaleString("id-ID")} shinedust` : ""}
+                              {slot.cost > 0
+                                ? ` · ${new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-GB").format(slot.cost)}`
+                                : ""}
                             </p>
                             <p className="mt-1 text-body-sm text-on-surface-variant">
                               {slot.tradeBack
-                                ? `${slot.reason} Tukar dengan ${slot.tradeBack.name}.`
-                                : slot.reason}
+                                ? t("planner.reason.tradeBack", {
+                                    reason,
+                                    card: slot.tradeBack.name,
+                                  })
+                                : reason}
                             </p>
                           </div>
 
                           <div className="flex shrink-0 items-center gap-1.5">
                             {plannedExists ? (
                               <span className="chip border-success/30 bg-success/10 text-success">
-                                <Icon name="check" className="h-3 w-3" /> sudah di ledger
+                                <Icon name="check" className="h-3 w-3" />
+                                {t("planner.slot.planned")}
                               </span>
                             ) : (
                               <ActionButton
@@ -188,8 +221,8 @@ export default async function PlannerPage() {
                                   cardInId: slot.tradeBack?.id ?? "",
                                   plannedDay: day,
                                 }}
-                                label="Buat rencana"
-                                pendingLabel="Menyimpan..."
+                                label={t("planner.slot.create")}
+                                pendingLabel={t("common.saving")}
                                 variant="secondary"
                                 icon="plus"
                                 explain
@@ -211,41 +244,43 @@ export default async function PlannerPage() {
           <section className="panel p-3">
             <h2 className="flex items-center gap-2 font-display text-base text-on-surface">
               <Icon name="shield" className="h-4 w-4 text-success" />
-              Constraint engine rules
+              {t("planner.rules.title")}
             </h2>
             <ul className="mt-2 space-y-1.5 text-body-sm text-on-surface-variant">
-              {plan.assumptions.map((assumption) => (
-                <li key={assumption} className="flex gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                  {assumption}
+              {rules.map((rule, index) => (
+                <li key={rule} className="flex gap-2">
+                  <span
+                    className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
+                      index === rules.length - 1 ? "bg-secondary" : "bg-primary"
+                    }`}
+                  />
+                  {rule}
                 </li>
               ))}
-              <li className="flex gap-2">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-secondary" />
-                Kartu 3★ / Immersive / Crown tidak dipindahkan dan tidak pernah masuk jadwal.
-              </li>
             </ul>
             <Link href="/settings" className="btn-secondary mt-3 w-full">
-              Ubah aturan
+              {t("planner.rules.edit")}
             </Link>
           </section>
 
           <section className="panel p-3">
             <h2 className="flex items-center gap-2 font-display text-base text-on-surface">
               <Icon name="alert" className="h-4 w-4 text-secondary" />
-              Sisa defisit per akun
+              {t("planner.remaining.title")}
             </h2>
             <ul className="mt-2 space-y-1.5">
               {plan.remaining.map((item) => (
                 <li key={item.account.id} className="flex items-center justify-between gap-2 text-body-sm">
-                  <span className="truncate text-on-surface-variant">{accountShortName(item.account.name)}</span>
+                  <span className="truncate text-on-surface-variant">
+                    {accountShortName(item.account.name)}
+                  </span>
                   <span className="flex shrink-0 items-center gap-1.5 font-mono text-label-md">
                     <span className={item.exDeficit > 0 ? "text-rose-300" : "text-success"}>
-                      EX {item.exDeficit}
+                      {t("planner.ex", { count: item.exDeficit })}
                     </span>
                     <span className="text-outline">|</span>
                     <span className={item.trainerDeficit > 0 ? "text-secondary" : "text-success"}>
-                      TR {item.trainerDeficit}
+                      {t("planner.trainer", { count: item.trainerDeficit })}
                     </span>
                   </span>
                 </li>
@@ -256,26 +291,26 @@ export default async function PlannerPage() {
           <section className="panel p-3">
             <h2 className="flex items-center gap-2 font-display text-base text-on-surface">
               <Icon name="repeat" className="h-4 w-4 text-primary" />
-              Audit log terbaru
+              {t("planner.audit.title")}
             </h2>
             <ul className="mt-2 space-y-1.5">
               {ledger.transfers.slice(0, 6).map((transfer) => (
                 <li key={transfer.id} className="flex items-center justify-between gap-2 text-body-sm">
                   <span className="min-w-0 truncate text-on-surface-variant">
                     <span className="font-mono text-label-sm text-outline">
-                      {formatDateTime(transfer.createdAt, settings.timeZone)}
+                      {formatDateTime(transfer.createdAt, settings.timeZone, locale)}
                     </span>{" "}
-                    {transfer.cardOut?.name ?? "—"}
+                    {transfer.cardOut?.name ?? t("transfer.cardMissing")}
                   </span>
                   <StatusBadge status={transfer.status} />
                 </li>
               ))}
               {ledger.transfers.length === 0 && (
-                <li className="text-body-sm text-outline">Belum ada event transfer.</li>
+                <li className="text-body-sm text-outline">{t("planner.audit.empty")}</li>
               )}
             </ul>
             <Link href="/transfers" className="btn-ghost mt-1 w-full">
-              Lihat semua riwayat
+              {t("planner.audit.link")}
               <Icon name="arrowRight" className="h-4 w-4" />
             </Link>
           </section>

@@ -136,7 +136,7 @@ describe("buildCandidates", () => {
       quotas: { pairSendRemaining: 0 },
     });
     expect(result[0].allowedNow).toBe(false);
-    expect(result[0].blockedReason).toContain("kuota kirim");
+    expect(result[0].blockedReason).toBe("pairQuota");
   });
 
   it("mengurutkan ex lebih dulu daripada trainer", () => {

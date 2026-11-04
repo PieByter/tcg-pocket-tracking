@@ -1,6 +1,8 @@
 import { logout } from "@/app/actions";
+import { getI18n } from "@/lib/i18n/server";
 import { Logo } from "./brand";
 import { Icon } from "./icon";
+import { LanguageSwitcher } from "./language-switcher";
 import { ResetClock } from "./reset-clock";
 import { MobileNav, SidebarNav } from "./sidebar-nav";
 
@@ -14,13 +16,15 @@ export type ShellStats = {
   timeZone: string;
 };
 
-export function AppShell({
+export async function AppShell({
   children,
   stats,
 }: {
   children: React.ReactNode;
   stats: ShellStats;
 }) {
+  const { locale, t } = await getI18n();
+
   return (
     <div className="min-h-dvh">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col justify-between border-r border-white/[0.07] bg-surface-container-lowest/95 backdrop-blur-xl lg:flex">
@@ -35,14 +39,14 @@ export function AppShell({
 
         <div className="m-3 rounded-xl border border-white/10 bg-surface-container-low p-3">
           <div className="flex items-center justify-between">
-            <span className="label-xs">Multi-Sync State</span>
+            <span className="label-xs">{t("shell.multiSync")}</span>
             <span className="flex items-center gap-1.5 font-mono text-label-sm text-success">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
-              LIVE
+              {t("shell.live").toUpperCase()}
             </span>
           </div>
           <p className="mt-2 flex items-baseline justify-between font-display text-sm text-on-surface">
-            Accounts locked
+            {t("shell.accountsLocked")}
             <span className="font-mono text-primary">
               {stats.accountsCount} / {stats.accountsCount}
             </span>
@@ -63,15 +67,16 @@ export function AppShell({
 
             <span className="hidden items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 font-mono text-label-sm uppercase tracking-wider text-primary sm:inline-flex">
               <Icon name="shield" className="h-3.5 w-3.5" />
-              {stats.accountsCount} akun aktif · sync
+              {t("shell.accountsLive", { count: stats.accountsCount })}
             </span>
 
             <ResetClock initialMinutes={stats.resetsInMinutes} />
 
             <div className="ml-auto flex items-center gap-2">
+              <LanguageSwitcher locale={locale} t={t} compact />
               <span className="hidden text-right text-xs leading-tight text-on-surface-variant md:block">
                 <span className="block font-display text-sm text-on-surface">Pieter</span>
-                Lead Collector
+                {t("shell.role")}
               </span>
               <span className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-surface-container-high font-display text-sm text-primary">
                 PT
@@ -80,8 +85,8 @@ export function AppShell({
                 <button
                   type="submit"
                   className="btn-ghost"
-                  title="Keluar"
-                  aria-label="Keluar"
+                  title={t("shell.logout")}
+                  aria-label={t("shell.logout")}
                 >
                   <Icon name="logout" className="h-4 w-4" />
                 </button>
@@ -90,28 +95,35 @@ export function AppShell({
           </div>
 
           <div className="no-scrollbar flex items-center gap-4 overflow-x-auto border-t border-white/[0.05] bg-surface-container-lowest/60 px-4 py-2 lg:px-8">
-            <RibbonItem tone="primary" label="Registry status" value={`${stats.accountsCount} akun terdaftar`} />
+            <RibbonItem
+              tone="primary"
+              label={t("shell.ribbon.registry")}
+              value={t("shell.ribbon.registryValue", { count: stats.accountsCount })}
+            />
             <span className="h-3 w-px shrink-0 bg-white/10" />
             <RibbonItem
               tone={stats.deficitAccounts > 0 ? "warning" : "success"}
-              label="Alert"
+              label={t("shell.ribbon.alert")}
               value={
                 stats.deficitAccounts > 0
-                  ? `${stats.deficitAccounts} akun defisit ex`
+                  ? t("shell.ribbon.deficit", { count: stats.deficitAccounts })
                   : stats.trackedCount === 0
-                    ? "Koleksi belum dicatat"
-                    : "Semua akun memenuhi minimal ex"
+                    ? t("shell.ribbon.untracked")
+                    : t("shell.ribbon.allMeet")
               }
             />
             <span className="h-3 w-px shrink-0 bg-white/10" />
             <RibbonItem
               tone="tertiary"
-              label="Kuota share hari ini"
-              value={`${stats.shareUsedToday}/${stats.shareCapacity} terpakai`}
+              label={t("shell.ribbon.share")}
+              value={t("shell.ribbon.shareValue", {
+                used: stats.shareUsedToday,
+                capacity: stats.shareCapacity,
+              })}
             />
             <span className="ml-auto hidden shrink-0 items-center gap-1.5 font-mono text-label-sm uppercase tracking-wider text-outline md:flex">
               <Icon name="clock" className="h-3.5 w-3.5" />
-              Instant ledger sync engine
+              {t("shell.ribbon.sync")}
             </span>
           </div>
         </header>

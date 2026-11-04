@@ -216,6 +216,14 @@ export function quotaFor(
   };
 }
 
+export type CandidateBlock =
+  | "receiveQuota"
+  | "pairQuota"
+  | "tradeCooldown"
+  | "tradeFromQuota"
+  | "tradeToQuota"
+  | "noTradeBack";
+
 export type Candidate = {
   card: Card;
   method: "share" | "trade";
@@ -226,8 +234,7 @@ export type Candidate = {
   tradeBack: { card: Card; qty: number } | null;
   cost: number;
   allowedNow: boolean;
-  blockedReason: string | null;
-  note: string;
+  blockedReason: CandidateBlock | null;
 };
 
 type CandidateContext = {
@@ -297,24 +304,16 @@ export function buildCandidates(context: CandidateContext): Candidate[] {
     }
 
     const tradeBack = method === "trade" ? tradeBacks.get(card.rarityCode) ?? null : null;
-    const blockedReasons: string[] = [];
+    const blockedReasons: CandidateBlock[] = [];
     if (method === "share") {
-      if (quota.receiveRemaining <= 0) blockedReasons.push("kuota terima penerima habis");
-      if (quota.pairSendRemaining <= 0) blockedReasons.push("kuota kirim ke akun ini habis");
+      if (quota.receiveRemaining <= 0) blockedReasons.push("receiveQuota");
+      if (quota.pairSendRemaining <= 0) blockedReasons.push("pairQuota");
     } else {
-      if (quota.tradePairBlocked) blockedReasons.push("cooldown trade pasangan ini");
-      if (quota.tradeFromRemaining <= 0) blockedReasons.push("kuota trade pemberi habis");
-      if (quota.tradeToRemaining <= 0) blockedReasons.push("kuota trade penerima habis");
-      if (!tradeBack) blockedReasons.push("penerima belum punya duplikat rarity sama");
+      if (quota.tradePairBlocked) blockedReasons.push("tradeCooldown");
+      if (quota.tradeFromRemaining <= 0) blockedReasons.push("tradeFromQuota");
+      if (quota.tradeToRemaining <= 0) blockedReasons.push("tradeToQuota");
+      if (!tradeBack) blockedReasons.push("noTradeBack");
     }
-
-    const note = method === "share"
-      ? spare > 0
-        ? `Surplus ${spare} di atas target; tidak mengganggu minimal ex.`
-        : `Satu-satunya ex, tetapi ${fromAccount.name} tetap memenuhi minimal ${fromAccount.minEx} ex.`
-      : tradeBack
-        ? `Tukar sepadan dengan ${tradeBack.card.name}.`
-        : "Butuh kartu duplikat dengan rarity sama dari penerima.";
 
     candidates.push({
       card,
@@ -327,7 +326,6 @@ export function buildCandidates(context: CandidateContext): Candidate[] {
       cost: method === "trade" ? tradeCost(card, settings.tradeCosts) : 0,
       allowedNow: blockedReasons.length === 0,
       blockedReason: blockedReasons[0] ?? null,
-      note,
     });
   }
 

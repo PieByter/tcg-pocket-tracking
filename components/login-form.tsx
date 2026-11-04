@@ -3,15 +3,17 @@
 import { useActionState } from "react";
 import { login } from "@/app/actions";
 import { Icon } from "@/components/icon";
+import { useI18n } from "./i18n-provider";
 
 export function LoginForm({ configured }: { configured: boolean }) {
+  const { t } = useI18n();
   const [state, formAction, pending] = useActionState(login, null);
 
   return (
     <form action={formAction} className="space-y-4">
       <div className="space-y-1.5">
         <label htmlFor="password" className="label-xs block">
-          Password ledger
+          {t("login.password")}
         </label>
         <input
           id="password"
@@ -28,15 +30,14 @@ export function LoginForm({ configured }: { configured: boolean }) {
       {state && !state.ok && (
         <p className="flex items-center gap-2 rounded-lg border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-200">
           <Icon name="alert" className="h-4 w-4 shrink-0" />
-          {state.message}
+          {t(state.key, state.params)}
         </p>
       )}
 
       {!configured && (
         <p className="flex items-start gap-2 rounded-lg border border-secondary/30 bg-secondary/10 px-3 py-2 text-sm text-secondary">
           <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0" />
-          Set <code className="font-mono">APP_PASSWORD</code> di <code className="font-mono">.env.local</code> (atau
-          environment Vercel) sebelum login.
+          {t("login.notConfigured")}
         </p>
       )}
 
@@ -44,12 +45,12 @@ export function LoginForm({ configured }: { configured: boolean }) {
         {pending ? (
           <>
             <Icon name="repeat" className="h-4 w-4 animate-spin" />
-            Memeriksa...
+            {t("login.pending")}
           </>
         ) : (
           <>
             <Icon name="shield" className="h-4 w-4" />
-            Masuk ke vault
+            {t("login.submit")}
           </>
         )}
       </button>

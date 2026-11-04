@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import type { ActionResult } from "@/app/actions";
 import { Icon, type IconName } from "./icon";
+import { useI18n } from "./i18n-provider";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 
@@ -34,6 +35,7 @@ export function ActionButton({
   className?: string;
   explain?: boolean;
 }) {
+  const { t } = useI18n();
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<ActionResult | null>(null);
 
@@ -48,6 +50,8 @@ export function ActionButton({
     });
   };
 
+  const message = result ? t(result.key, result.params) : null;
+
   return (
     <span className="inline-flex flex-col items-start gap-1">
       <button
@@ -55,13 +59,13 @@ export function ActionButton({
         onClick={run}
         disabled={pending}
         className={`${variants[variant]} ${className}`}
-        title={explain && result && !result.ok ? result.message : undefined}
+        title={explain && result && !result.ok ? (message ?? undefined) : undefined}
       >
         {icon && <Icon name={pending ? "repeat" : icon} className={`h-4 w-4 ${pending ? "animate-spin" : ""}`} />}
         {pending ? pendingLabel ?? label : label}
       </button>
-      {result && !result.ok && <span className="text-[11px] text-rose-300">{result.message}</span>}
-      {result?.ok && explain && <span className="text-[11px] text-success">{result.message}</span>}
+      {result && !result.ok && <span className="text-[11px] text-rose-300">{message}</span>}
+      {result?.ok && explain && <span className="text-[11px] text-success">{message}</span>}
     </span>
   );
 }

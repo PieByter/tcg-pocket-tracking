@@ -4,6 +4,8 @@ import type { AppSettings } from "./settings";
 import { type CardMap, type HoldingsByAccount, type UsageTransfer, computeUsage, daysBetween, pairKey } from "./domain";
 import { shiftDay } from "./game-day";
 
+export type PlanReason = "ex" | "trainer";
+
 export type PlanSlot = {
   day: string;
   dayIndex: number;
@@ -13,7 +15,7 @@ export type PlanSlot = {
   method: "share" | "trade";
   tradeBack: Card | null;
   cost: number;
-  reason: string;
+  reason: PlanReason;
 };
 
 export type PlanRemaining = { account: Account; exDeficit: number; trainerDeficit: number };
@@ -24,7 +26,6 @@ export type PlannerResult = {
   daysUsed: number;
   totalSlots: number;
   feasible: boolean;
-  assumptions: string[];
 };
 
 type SimCard = { qty: number; target: number };
@@ -240,7 +241,7 @@ export function buildPlan(input: PlannerInput): PlannerResult {
     card: Card,
     method: "share" | "trade",
     tradeBack: Card | null,
-    reason: string,
+    reason: PlanReason,
   ) => {
     const book = bookFor(day);
 
@@ -278,7 +279,7 @@ export function buildPlan(input: PlannerInput): PlannerResult {
     dayIndex: number,
     receiver: Account,
     card: Card,
-    reason: string,
+    reason: PlanReason,
     requireSpare: boolean,
   ): boolean => {
     const method = transferMethod(card);
@@ -372,7 +373,7 @@ export function buildPlan(input: PlannerInput): PlannerResult {
 
         let placed = false;
         for (const option of options) {
-          if (tryDonate(day, dayIndex, receiver, option.card, "Menutup defisit ex", false)) {
+          if (tryDonate(day, dayIndex, receiver, option.card, "ex", false)) {
             placed = true;
             break;
           }
@@ -384,7 +385,7 @@ export function buildPlan(input: PlannerInput): PlannerResult {
     // 2. Trainer yang masih di bawah target.
     for (const need of trainerNeeds()) {
       if (!receiveFree(day, need.account.id)) continue;
-      tryDonate(day, dayIndex, need.account, need.card, "Menutup defisit trainer", false);
+      tryDonate(day, dayIndex, need.account, need.card, "trainer", false);
     }
   }
 
@@ -407,12 +408,6 @@ export function buildPlan(input: PlannerInput): PlannerResult {
     daysUsed,
     totalSlots: slots.length,
     feasible: remaining.every((item) => item.exDeficit === 0 && item.trainerDeficit === 0),
-    assumptions: [
-      `Share: maksimal ${settings.shareReceivePerDay} kartu diterima per akun per hari.`,
-      `Share: maksimal ${settings.shareSendPerPairPerDay} kiriman per pasangan akun per hari.`,
-      `Trade: maksimal ${settings.tradePerAccountPerDay} per akun per hari, cooldown ${settings.tradePairCooldownDays} hari per pasangan.`,
-      `Reset harian pukul ${String(settings.resetHour).padStart(2, "0")}:00 ${settings.timeZone}.`,
-    ].filter(Boolean),
   };
 }
 

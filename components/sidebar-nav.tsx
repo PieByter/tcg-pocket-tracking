@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS } from "./brand";
 import { Icon } from "./icon";
+import { useI18n } from "./i18n-provider";
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -12,10 +13,12 @@ function isActive(pathname: string, href: string) {
 
 export function SidebarNav() {
   const pathname = usePathname();
+  const { t } = useI18n();
+
   return (
     <nav className="flex flex-col gap-1">
       <p className="px-3 pb-2 font-mono text-label-sm uppercase tracking-[0.18em] text-outline">
-        Core Navigation
+        {t("nav.core")}
       </p>
       {NAV_ITEMS.map((item) => {
         const active = isActive(pathname, item.href);
@@ -37,9 +40,10 @@ export function SidebarNav() {
                   : "border-white/10 bg-white/5 text-on-surface-variant group-hover:text-primary"
               }`}
             >
-              <NavIcon name={item.icon} />
+              <Icon name={item.icon} className="h-4.5 w-4.5" />
             </span>
-            <span className="font-medium">{item.label}</span>          </Link>
+            <span className="font-medium">{t(item.labelKey)}</span>
+          </Link>
         );
       })}
     </nav>
@@ -48,6 +52,8 @@ export function SidebarNav() {
 
 export function MobileNav() {
   const pathname = usePathname();
+  const { t } = useI18n();
+
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-surface-container-lowest/95 backdrop-blur-xl lg:hidden">
       <ul className="no-scrollbar flex overflow-x-auto px-1 py-1.5">
@@ -62,8 +68,8 @@ export function MobileNav() {
                   active ? "bg-primary/10 text-primary" : "text-on-surface-variant"
                 }`}
               >
-                <NavIcon name={item.icon} />
-                <span>{item.short}</span>
+                <Icon name={item.icon} className="h-4.5 w-4.5" />
+                <span>{t(item.shortKey)}</span>
               </Link>
             </li>
           );
@@ -71,8 +77,4 @@ export function MobileNav() {
       </ul>
     </nav>
   );
-}
-
-function NavIcon({ name }: { name: (typeof NAV_ITEMS)[number]["icon"] }) {
-  return <Icon name={name} className="h-4.5 w-4.5" />;
 }

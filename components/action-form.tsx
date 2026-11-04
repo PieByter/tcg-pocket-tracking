@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import type { ActionResult } from "@/app/actions";
 import { Icon } from "./icon";
+import { useI18n } from "./i18n-provider";
 
 export function ActionForm({
   action,
@@ -21,6 +22,7 @@ export function ActionForm({
   resetOnSuccess?: boolean;
   compact?: boolean;
 }) {
+  const { t } = useI18n();
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<ActionResult | null>(null);
@@ -44,10 +46,12 @@ export function ActionForm({
       <div className={`flex flex-wrap items-center gap-2 ${compact ? "mt-2" : "mt-3"}`}>
         <button type="submit" className={compact ? "btn-secondary !py-1.5 !text-xs" : "btn-primary"} disabled={pending}>
           <Icon name={pending ? "repeat" : submitIcon} className={`h-4 w-4 ${pending ? "animate-spin" : ""}`} />
-          {pending ? "Menyimpan..." : submitLabel}
+          {pending ? t("common.saving") : submitLabel}
         </button>
         {result && (
-          <span className={`text-xs ${result.ok ? "text-success" : "text-rose-300"}`}>{result.message}</span>
+          <span className={`text-xs ${result.ok ? "text-success" : "text-rose-300"}`}>
+            {t(result.key, result.params)}
+          </span>
         )}
       </div>
     </form>

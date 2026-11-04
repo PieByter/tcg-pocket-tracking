@@ -8,31 +8,45 @@ import { Icon } from "@/components/icon";
 import { TransferRow } from "@/components/transfer-row";
 import { EmptyState, PageHeader, SectionHeading, StatCard } from "@/components/ui";
 import { tradeCost } from "@/lib/cards";
-import { buildCandidates, holdingOf, quotaFor } from "@/lib/domain";
-import { accountShortName } from "@/lib/format";
+import { buildCandidates, holdingOf, quotaFor, type CandidateBlock } from "@/lib/domain";
+import { accountShortName, formatNumber } from "@/lib/format";
+import type { MessageKey } from "@/lib/i18n";
+import { getI18n } from "@/lib/i18n/server";
 import { loadLedger } from "@/lib/queries";
 
-export const metadata = { title: "Transfer Matcher — PocketLedger" };
+const blockKeys: Record<CandidateBlock, MessageKey> = {
+  receiveQuota: "matcher.block.receiveQuota",
+  pairQuota: "matcher.block.pairQuota",
+  tradeCooldown: "matcher.block.tradeCooldown",
+  tradeFromQuota: "matcher.block.tradeFromQuota",
+  tradeToQuota: "matcher.block.tradeToQuota",
+  noTradeBack: "matcher.block.noTradeBack",
+};
+
+export async function generateMetadata() {
+  const { t } = await getI18n();
+  return { title: t("matcher.metaTitle") };
+}
 
 export default async function MatcherPage(props: PageProps<"/matcher">) {
-  const searchParams = await props.searchParams;
-  const ledger = await loadLedger();
+  const [searchParams, ledger] = await Promise.all([props.searchParams, loadLedger()]);
+  const { locale, t } = await getI18n();
   const { accounts, cards, holdings, settings, usage } = ledger;
 
   if (accounts.length < 2) {
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="Transfer matcher"
-          title="Butuh minimal dua akun"
-          description="Tambahkan akun lain dulu agar matcher bisa menghitung kandidat transfer."
+          eyebrow={t("matcher.eyebrow")}
+          title={t("matcher.needTwo.title")}
+          description={t("matcher.needTwo.description")}
         />
         <EmptyState
           icon="shield"
-          title="Akun belum cukup"
+          title={t("matcher.notEnough.title")}
           action={
             <Link href="/settings" className="btn-primary">
-              Kelola akun
+              {t("matcher.needTwo.action")}
             </Link>
           }
         />
@@ -45,9 +59,7 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
     .sort((a, b) => b.exDeficit - a.exDeficit)[0];
 
   const receiver =
-    accounts.find((account) => account.id === searchParams.to) ??
-    firstDeficit?.account ??
-    accounts[0];
+    accounts.find((account) => account.id === searchParams.to) ?? firstDeficit?.account ?? accounts[0];
   const sender =
     accounts.find((account) => account.id === searchParams.from && account.id !== receiver.id) ??
     accounts.find((account) => account.id !== receiver.id)!;
@@ -75,17 +87,18 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
 
   const shareReady = candidates.filter((candidate) => candidate.method === "share" && candidate.allowedNow).length;
   const tradeReady = candidates.filter((candidate) => candidate.method === "trade" && candidate.allowedNow).length;
+  const resetTime = `${String(settings.resetHour).padStart(2, "0")}:00`;
 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Transfer matcher · F10–F13"
-        title="Kandidat Kartu Transfer Layak"
-        description="Kandidat = kartu milik pemberi yang belum dimiliki penerima, dan masih surplus setelah target sendiri terpenuhi."
+        eyebrow={t("matcher.eyebrow")}
+        title={t("matcher.title")}
+        description={t("matcher.description")}
         actions={
           <Link href={`/inventory?account=${receiver.id}`} className="btn-secondary">
             <Icon name="matrix" className="h-4 w-4" />
-            Koreksi koleksi {accountShortName(receiver.name)}
+            {t("matcher.action.correct", { account: accountShortName(receiver.name) })}
           </Link>
         }
       />
@@ -96,22 +109,22 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
         <AccountPairPicker accounts={accounts} receiverId={receiver.id} senderId={sender.id} />
         <div className="relative z-10 mt-3 grid grid-cols-2 gap-2 border-t border-white/[0.07] pt-3 sm:grid-cols-4">
           <QuotaPill
-            label="Sisa terima penerima"
+            label={t("matcher.quota.receive")}
             value={`${quota.receiveRemaining}/${settings.shareReceivePerDay}`}
             ok={quota.receiveRemaining > 0}
           />
           <QuotaPill
-            label="Sisa kirim pasangan"
+            label={t("matcher.quota.pair")}
             value={`${quota.pairSendRemaining}/${settings.shareSendPerPairPerDay}`}
             ok={quota.pairSendRemaining > 0}
           />
           <QuotaPill
-            label="Trade pemberi"
+            label={t("matcher.quota.tradeFrom")}
             value={`${quota.tradeFromRemaining}/${settings.tradePerAccountPerDay}`}
             ok={quota.tradeFromRemaining > 0 && !quota.tradePairBlocked}
           />
           <QuotaPill
-            label="Trade penerima"
+            label={t("matcher.quota.tradeTo")}
             value={`${quota.tradeToRemaining}/${settings.tradePerAccountPerDay}`}
             ok={quota.tradeToRemaining > 0 && !quota.tradePairBlocked}
           />
@@ -120,58 +133,69 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label={`Defisit ${accountShortName(receiver.name)}`}
+          label={t("matcher.kpi.def", { account: accountShortName(receiver.name) })}
           value={receiverSummary?.exDeficit ?? 0}
-          hint="ex unik kurang"
+          hint={t("matcher.kpi.defHint")}
           tone={(receiverSummary?.exDeficit ?? 0) > 0 ? "secondary" : "success"}
           icon="alert"
-          detail={`Trainer kurang ${receiverSummary?.trainerDeficit ?? 0} kartu`}
+          detail={t("matcher.kpi.defDetail", { count: receiverSummary?.trainerDeficit ?? 0 })}
         />
         <StatCard
-          label={`Surplus ${accountShortName(sender.name)}`}
+          label={t("matcher.kpi.surplus", { account: accountShortName(sender.name) })}
           value={senderSummary?.surplus ?? 0}
-          hint="kartu di atas target"
+          hint={t("matcher.kpi.surplusHint")}
           tone="primary"
           icon="package"
-          detail={`${senderSummary?.exCount ?? 0} ex unik · min ${sender.minEx}`}
+          detail={t("matcher.kpi.surplusDetail", {
+            ex: senderSummary?.exCount ?? 0,
+            min: sender.minEx,
+          })}
         />
         <StatCard
-          label="Kandidat siap eksekusi"
+          label={t("matcher.kpi.ready")}
           value={candidates.filter((candidate) => candidate.allowedNow).length}
-          hint={`${shareReady} share · ${tradeReady} trade`}
+          hint={t("matcher.kpi.readyHint", { share: shareReady, trade: tradeReady })}
           tone="tertiary"
           icon="swap"
-          detail={`${candidates.length} kandidat total untuk pasangan ini`}
+          detail={t("matcher.kpi.readyDetail", { count: candidates.length })}
         />
         <StatCard
-          label="Kuota share hari ini"
-          value={`${Math.max(0, settings.shareReceivePerDay - (usage.receivedShare.get(receiver.id) ?? 0))}/${settings.shareReceivePerDay}`}
-          hint="tersedia untuk penerima"
+          label={t("matcher.kpi.share")}
+          value={`${Math.max(
+            0,
+            settings.shareReceivePerDay - (usage.receivedShare.get(receiver.id) ?? 0),
+          )}/${settings.shareReceivePerDay}`}
+          hint={t("matcher.kpi.shareHint")}
           tone="primary"
           icon="clock"
-          detail={`Reset ${String(settings.resetHour).padStart(2, "0")}:00 ${settings.timeZone}`}
+          detail={t("matcher.kpi.shareDetail", { time: resetTime, timeZone: settings.timeZone })}
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2.15fr)_minmax(0,1fr)]">
         <section className="space-y-3">
           <SectionHeading
-            title="Kandidat kartu"
-            subtitle={`Dari ${sender.name} ke ${receiver.name}. Pilih satu untuk dijadwalkan, lalu eksekusi di game.`}
-            badge={`${candidates.length} kandidat`}
+            title={t("matcher.list.title")}
+            subtitle={t("matcher.list.subtitle", {
+              from: sender.name,
+              to: receiver.name,
+            })}
+            badge={t("matcher.list.badge", { count: candidates.length })}
             action={
-              <span className="chip border-white/10 bg-white/5 text-on-surface-variant">filter: semua metode</span>
+              <span className="chip border-white/10 bg-white/5 text-on-surface-variant">
+                {t("matcher.list.filter")}
+              </span>
             }
           />
 
           {candidates.length === 0 ? (
             <EmptyState
               icon="search"
-              title="Tidak ada kandidat"
-              description="Pemberi tidak punya surplus yang belum dimiliki penerima. Coba pasangan akun lain, atau perbarui koleksi di Inventory Matrix."
+              title={t("matcher.list.emptyTitle")}
+              description={t("matcher.list.emptyBody")}
               action={
                 <Link href="/inventory" className="btn-secondary">
-                  Perbarui koleksi
+                  {t("matcher.list.emptyAction")}
                 </Link>
               }
             />
@@ -181,6 +205,17 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
                 const senderState = holdingOf(holdings, sender.id, candidate.card.id);
                 const receiverState = holdingOf(holdings, receiver.id, candidate.card.id);
                 const cost = tradeCost(candidate.card, settings.tradeCosts);
+                const note =
+                  candidate.method === "share"
+                    ? candidate.spare > 0
+                      ? t("matcher.note.surplus", { spare: candidate.spare })
+                      : t("matcher.note.singleEx", {
+                          account: accountShortName(sender.name),
+                          min: sender.minEx,
+                        })
+                    : candidate.tradeBack
+                      ? t("matcher.note.tradeReady", { card: candidate.tradeBack.card.name })
+                      : t("matcher.note.tradeNeedsPartner");
 
                 return (
                   <article key={candidate.card.id} className="panel overflow-hidden">
@@ -211,38 +246,55 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
                         <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
                           <Metric
                             label={accountShortName(sender.name)}
-                            value={`${senderState.qty} (target ${senderState.targetQty})`}
+                            value={t("matcher.metric.senderValue", {
+                              qty: senderState.qty,
+                              target: senderState.targetQty,
+                            })}
                             tone="primary"
                           />
                           <Metric
                             label={accountShortName(receiver.name)}
-                            value={`${receiverState.qty} dimiliki`}
+                            value={t("matcher.metric.receiverValue", { qty: receiverState.qty })}
                             tone={receiverState.qty === 0 ? "warning" : "muted"}
                           />
                           <Metric
-                            label={candidate.method === "share" ? "Biaya" : "Shinedust"}
-                            value={candidate.method === "share" ? "0" : cost.toLocaleString("id-ID")}
+                            label={t(
+                              candidate.method === "share"
+                                ? "matcher.metric.cost"
+                                : "matcher.metric.shinedust",
+                            )}
+                            value={
+                              candidate.method === "share"
+                                ? t("matcher.metric.free")
+                                : formatNumber(cost, locale)
+                            }
                           />
-                          <Metric label="Surplus" value={`+${Math.max(0, candidate.spare)}`} tone="success" />
+                          <Metric
+                            label={t("matcher.metric.spare")}
+                            value={`+${Math.max(0, candidate.spare)}`}
+                            tone="success"
+                          />
                         </div>
 
-                        <p className="mt-2 text-body-sm text-on-surface-variant">{candidate.note}</p>
+                        <p className="mt-2 text-body-sm text-on-surface-variant">{note}</p>
 
                         {candidate.method === "trade" && candidate.tradeBack && (
                           <p className="mt-1 flex flex-wrap items-center gap-1.5 text-body-sm text-secondary">
                             <Icon name="swap" className="h-3.5 w-3.5" />
-                            Saran pengganti dari {accountShortName(receiver.name)}:
+                            {t("matcher.tradeBack", { account: accountShortName(receiver.name) })}
                             <span className="font-medium">{candidate.tradeBack.card.name}</span>
                             <RarityChip card={candidate.tradeBack.card} />
-                            <span className="font-mono text-label-sm text-outline">×{candidate.tradeBack.qty}</span>
+                            <span className="font-mono text-label-sm text-outline">
+                              ×{candidate.tradeBack.qty}
+                            </span>
                           </p>
                         )}
 
                         <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
-                          {!candidate.allowedNow && (
+                          {!candidate.allowedNow && candidate.blockedReason && (
                             <span className="mr-auto flex items-center gap-1.5 text-xs text-secondary">
                               <Icon name="alert" className="h-3.5 w-3.5" />
-                              {candidate.blockedReason}
+                              {t(blockKeys[candidate.blockedReason])}
                             </span>
                           )}
                           <ActionButton
@@ -255,8 +307,10 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
                               cardInId:
                                 candidate.method === "trade" ? candidate.tradeBack?.card.id ?? "" : "",
                             }}
-                            label={candidate.method === "share" ? "Pilih untuk Share" : "Siapkan Trade"}
-                            pendingLabel="Menyimpan..."
+                            label={t(
+                              candidate.method === "share" ? "matcher.action.share" : "matcher.action.trade",
+                            )}
+                            pendingLabel={t("common.saving")}
                             variant={candidate.allowedNow ? "primary" : "secondary"}
                             icon="plus"
                             explain
@@ -276,21 +330,26 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
             <div className="flex items-center justify-between">
               <h2 className="flex items-center gap-2 font-display text-base text-on-surface">
                 <Icon name="send" className="h-4 w-4 text-primary" />
-                Execution Plan
+                {t("matcher.plan.title")}
               </h2>
               <span className="chip border-primary/25 bg-primary/10 text-primary">
-                {pairTransfers.filter((transfer) => transfer.status === "planned").length} planned
+                {t("matcher.plan.planned", {
+                  count: pairTransfers.filter((transfer) => transfer.status === "planned").length,
+                })}
               </span>
             </div>
 
             {pairTransfers.length === 0 ? (
               <p className="mt-3 rounded-lg border border-white/[0.07] bg-white/[0.02] p-3 text-body-sm text-on-surface-variant">
-                Belum ada transfer untuk pasangan ini. Kandidat yang dipilih muncul di sini sebagai rencana.
+                {t("matcher.plan.empty")}
               </p>
             ) : (
               <ul className="mt-3 space-y-2">
                 {pairTransfers.map((transfer) => (
-                  <li key={transfer.id} className="rounded-lg border border-white/[0.07] bg-surface-container-lowest/70 p-2">
+                  <li
+                    key={transfer.id}
+                    className="rounded-lg border border-white/[0.07] bg-surface-container-lowest/70 p-2"
+                  >
                     <div className="flex items-center gap-2">
                       {transfer.cardOut && (
                         <CardImage
@@ -301,9 +360,12 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
                         />
                       )}
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm text-on-surface">{transfer.cardOut?.name ?? "—"}</p>
+                        <p className="truncate text-sm text-on-surface">
+                          {transfer.cardOut?.name ?? t("transfer.cardMissing")}
+                        </p>
                         <p className="truncate font-mono text-label-sm text-outline">
-                          {accountShortName(transfer.fromAccount.name)} → {accountShortName(transfer.toAccount.name)}
+                          {accountShortName(transfer.fromAccount.name)} →{" "}
+                          {accountShortName(transfer.toAccount.name)}
                         </p>
                       </div>
                       <StatusBadge status={transfer.status} />
@@ -314,18 +376,20 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
             )}
 
             <ol className="mt-4 space-y-2">
-              {[
-                ["Planned di PocketLedger", "Slot kuota harian dicatat agar tidak bentrok dengan akun lain."],
-                ["Eksekusi di Pokémon TCG Pocket", "Buka menu Social → Friends → Kirim Kartu / Trade sesuai ledger."],
-                ["Konfirmasi di app", "Kepemilikan 8 akun diperbarui dalam satu transaksi."],
-              ].map(([title, body], index) => (
-                <li key={title} className="flex gap-2">
+              {(
+                [
+                  ["matcher.plan.step1.title", "matcher.plan.step1.body"],
+                  ["matcher.plan.step2.title", "matcher.plan.step2.body"],
+                  ["matcher.plan.step3.title", "matcher.plan.step3.body"],
+                ] as [MessageKey, MessageKey][]
+              ).map(([titleKey, bodyKey], index) => (
+                <li key={titleKey} className="flex gap-2">
                   <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border border-primary/30 bg-primary/10 font-mono text-[10px] text-primary">
                     {index + 1}
                   </span>
                   <span>
-                    <span className="block text-xs font-medium text-on-surface">{title}</span>
-                    <span className="block text-[11px] text-on-surface-variant">{body}</span>
+                    <span className="block text-xs font-medium text-on-surface">{t(titleKey)}</span>
+                    <span className="block text-[11px] text-on-surface-variant">{t(bodyKey)}</span>
                   </span>
                 </li>
               ))}
@@ -335,42 +399,42 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
           <section className="panel p-3">
             <h2 className="flex items-center gap-2 font-display text-base text-on-surface">
               <Icon name="shield" className="h-4 w-4 text-success" />
-              Dampak kuota
+              {t("matcher.quotaImpact.title")}
             </h2>
             <ul className="mt-2 space-y-1.5 text-body-sm text-on-surface-variant">
               <li className="flex items-center justify-between">
-                <span>Terima hari ini</span>
+                <span>{t("matcher.quotaImpact.received")}</span>
                 <span className="font-mono text-primary">
                   {usage.receivedShare.get(receiver.id) ?? 0} / {settings.shareReceivePerDay}
                 </span>
               </li>
               <li className="flex items-center justify-between">
-                <span>Kirim pasangan ini</span>
+                <span>{t("matcher.quotaImpact.pair")}</span>
                 <span className="font-mono text-primary">
-                  {usage.sharePairs.get(`${sender.id}|${receiver.id}`) ?? 0} / {settings.shareSendPerPairPerDay}
+                  {usage.sharePairs.get(`${sender.id}|${receiver.id}`) ?? 0} /{" "}
+                  {settings.shareSendPerPairPerDay}
                 </span>
               </li>
               <li className="flex items-center justify-between">
-                <span>Trade hari ini</span>
+                <span>{t("matcher.quotaImpact.trades")}</span>
                 <span className="font-mono text-primary">
-                  {(usage.tradesPerAccount.get(sender.id) ?? 0) + (usage.tradesPerAccount.get(receiver.id) ?? 0)}
+                  {(usage.tradesPerAccount.get(sender.id) ?? 0) +
+                    (usage.tradesPerAccount.get(receiver.id) ?? 0)}
                   {" / "}
                   {settings.tradePerAccountPerDay * 2}
                 </span>
               </li>
             </ul>
             <p className="mt-2 border-t border-white/[0.07] pt-2 text-[11px] text-on-surface-variant">
-              Batas di atas ditegakkan server saat &quot;Tandai terkirim&quot; dan dicek ulang saat konfirmasi.
+              {t("matcher.quotaImpact.note")}
             </p>
           </section>
 
           <section className="panel p-3 text-body-sm text-on-surface-variant">
-            <p className="font-display text-sm text-secondary">Catatan koleksi</p>
-            <p className="mt-1">
-              Kartu 3★, Immersive, dan Crown tidak bisa dipindahkan dan tidak pernah muncul sebagai kandidat.
-            </p>
+            <p className="font-display text-sm text-secondary">{t("matcher.collection.title")}</p>
+            <p className="mt-1">{t("matcher.collection.body")}</p>
             <Link href="/inventory" className="btn-secondary mt-2 w-full">
-              Buka Inventory Matrix
+              {t("matcher.collection.action")}
             </Link>
           </section>
         </aside>
@@ -378,10 +442,15 @@ export default async function MatcherPage(props: PageProps<"/matcher">) {
 
       {ledger.transfers.length > 0 && (
         <section>
-          <SectionHeading title="Riwayat terbaru" subtitle="Semua pasangan akun, terbaru di atas." />
+          <SectionHeading title={t("matcher.history.title")} subtitle={t("matcher.history.subtitle")} />
           <div className="panel overflow-hidden">
             {ledger.transfers.slice(0, 4).map((transfer) => (
-              <TransferRow key={transfer.id} transfer={transfer} timeZone={settings.timeZone} dense />
+              <TransferRow
+                key={transfer.id}
+                transfer={transfer}
+                timeZone={settings.timeZone}
+                dense
+              />
             ))}
           </div>
         </section>

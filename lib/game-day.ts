@@ -1,4 +1,5 @@
 import type { AppSettings } from "./settings";
+import { intlLocale, type Locale, type Translate } from "./i18n";
 
 type LocalParts = { year: number; month: number; day: number; hour: number; minute: number };
 
@@ -54,9 +55,9 @@ export function minutesUntilReset(
   return (resetMinutes - nowMinutes + 24 * 60) % (24 * 60);
 }
 
-export function formatDayKey(dayKey: string, locale = "id-ID"): string {
+export function formatDayKey(dayKey: string, locale: Locale): string {
   const date = new Date(`${dayKey}T00:00:00Z`);
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -64,8 +65,13 @@ export function formatDayKey(dayKey: string, locale = "id-ID"): string {
   }).format(date);
 }
 
-export function relativeDayLabel(dayKey: string, today: string): string {
-  if (dayKey === today) return "Hari ini";
-  if (dayKey === shiftDay(today, 1)) return "Besok";
-  return formatDayKey(dayKey);
+export function relativeDayLabel(
+  dayKey: string,
+  today: string,
+  locale: Locale,
+  t: Translate,
+): string {
+  if (dayKey === today) return t("day.today");
+  if (dayKey === shiftDay(today, 1)) return t("day.tomorrow");
+  return formatDayKey(dayKey, locale);
 }

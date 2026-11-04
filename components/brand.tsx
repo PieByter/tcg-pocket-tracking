@@ -1,13 +1,14 @@
 import Link from "next/link";
+import type { MessageKey } from "@/lib/i18n";
 import { Icon, type IconName } from "./icon";
 
-export const NAV_ITEMS: { href: string; label: string; short: string; icon: IconName }[] = [
-  { href: "/", label: "Dashboard", short: "Dashboard", icon: "dashboard" },
-  { href: "/matcher", label: "Transfer Matcher", short: "Matcher", icon: "swap" },
-  { href: "/inventory", label: "Inventory Matrix", short: "Inventory", icon: "matrix" },
-  { href: "/planner", label: "Daily Planner", short: "Planner", icon: "planner" },
-  { href: "/transfers", label: "Riwayat Transfer", short: "Riwayat", icon: "repeat" },
-  { href: "/settings", label: "Settings & Rules", short: "Aturan", icon: "settings" },
+export const NAV_ITEMS: { href: string; labelKey: MessageKey; shortKey: MessageKey; icon: IconName }[] = [
+  { href: "/", labelKey: "nav.dashboard", shortKey: "nav.short.dashboard", icon: "dashboard" },
+  { href: "/matcher", labelKey: "nav.matcher", shortKey: "nav.short.matcher", icon: "swap" },
+  { href: "/inventory", labelKey: "nav.inventory", shortKey: "nav.short.inventory", icon: "matrix" },
+  { href: "/planner", labelKey: "nav.planner", shortKey: "nav.short.planner", icon: "planner" },
+  { href: "/transfers", labelKey: "nav.transfers", shortKey: "nav.short.transfers", icon: "repeat" },
+  { href: "/settings", labelKey: "nav.settings", shortKey: "nav.short.settings", icon: "settings" },
 ];
 
 export function Logo({ compact = false }: { compact?: boolean }) {

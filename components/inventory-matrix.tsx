@@ -7,6 +7,7 @@ import type { InventoryRow } from "@/lib/queries";
 import { RarityChip } from "./badges";
 import { CardImage } from "./card-image";
 import { Icon } from "./icon";
+import { useI18n } from "./i18n-provider";
 
 type Cell = { qty: number; targetQty: number };
 
@@ -23,6 +24,8 @@ export function InventoryMatrix({
   defaultTargetHint: { ex: number; trainer: number };
   focusAccountId?: string;
 }) {
+  const { t } = useI18n();
+
   const initial = useMemo(() => {
     const map = new Map<string, Cell>();
     for (const row of rows) {
@@ -84,7 +87,7 @@ export function InventoryMatrix({
   const save = () => {
     startTransition(async () => {
       const result = await saveHoldings(changes);
-      setMessage({ ok: result.ok, text: result.message });
+      setMessage({ ok: result.ok, text: t(result.key, result.params) });
     });
   };
 
@@ -96,7 +99,7 @@ export function InventoryMatrix({
             <thead>
               <tr className="border-b border-white/[0.08] bg-surface-container-lowest/70 text-left">
                 <th className="sticky left-0 z-10 min-w-[260px] bg-surface-container-lowest px-3 py-2 font-mono text-label-sm uppercase tracking-[0.12em] text-outline">
-                  Informasi kartu ledger
+                  {t("inventory.table.card")}
                 </th>
                 {accounts.map((account) => (
                   <th
@@ -109,7 +112,7 @@ export function InventoryMatrix({
                       {account.name.replace(/^Akun \d+:\s*/, "")}
                     </span>
                     <span className="block font-mono text-label-sm text-outline">
-                      min ex {account.minEx}
+                      {t("inventory.table.minEx", { min: account.minEx })}
                     </span>
                   </th>
                 ))}
@@ -132,8 +135,15 @@ export function InventoryMatrix({
                           <RarityChip card={row.card} />
                         </p>
                         <p className="mt-0.5 truncate font-mono text-label-sm text-outline">
-                          {row.card.kind === "ex" ? "EX" : row.card.kind === "trainer" ? "TRAINER" : "CARD"} ·{" "}
-                          {row.card.setName} ({row.card.setCode}) · #{String(row.card.number).padStart(3, "0")}
+                          {t(
+                            row.card.kind === "ex"
+                              ? "inventory.kind.ex"
+                              : row.card.kind === "trainer"
+                                ? "inventory.kind.trainer"
+                                : "inventory.kind.other",
+                          )}{" "}
+                          · {row.card.setName} ({row.card.setCode}) · #
+                          {String(row.card.number).padStart(3, "0")}
                         </p>
                       </div>
                     </div>
@@ -144,8 +154,10 @@ export function InventoryMatrix({
                     const cell = draft.get(key) ?? { qty: 0, targetQty: 0 };
                     const original = initial.get(key) ?? cell;
                     const changed = cell.qty !== original.qty || cell.targetQty !== original.targetQty;
-                    const fallback = row.card.kind === "trainer" ? defaultTargetHint.trainer : defaultTargetHint.ex;
+                    const fallback =
+                      row.card.kind === "trainer" ? defaultTargetHint.trainer : defaultTargetHint.ex;
                     const target = cell.targetQty || fallback;
+                    const shortAccount = account.name.replace(/^Akun \d+:\s*/, "");
 
                     return (
                       <td
@@ -162,7 +174,10 @@ export function InventoryMatrix({
                           }`}
                         >
                           <StepperButton
-                            label={`Kurangi ${row.card.name} dari ${account.name}`}
+                            label={t("inventory.stepper.minus", {
+                              card: row.card.name,
+                              account: shortAccount,
+                            })}
                             onClick={() => update(account.id, row.card.id, { qty: cell.qty - 1 })}
                           >
                             <Icon name="minus" className="h-3 w-3" />
@@ -175,13 +190,19 @@ export function InventoryMatrix({
                             {cell.qty}
                           </span>
                           <StepperButton
-                            label={`Tambah ${row.card.name} ke ${account.name}`}
+                            label={t("inventory.stepper.plus", {
+                              card: row.card.name,
+                              account: shortAccount,
+                            })}
                             onClick={() => update(account.id, row.card.id, { qty: cell.qty + 1 })}
                           >
                             <Icon name="plus" className="h-3 w-3" />
                           </StepperButton>
                           <input
-                            aria-label={`Target ${row.card.name} di ${account.name}`}
+                            aria-label={t("inventory.target.label", {
+                              card: row.card.name,
+                              account: shortAccount,
+                            })}
                             type="number"
                             min={0}
                             max={9}
@@ -191,7 +212,7 @@ export function InventoryMatrix({
                               update(account.id, row.card.id, { targetQty: Number(event.target.value) })
                             }
                             className="w-8 rounded border border-white/10 bg-transparent px-0.5 py-0.5 text-center font-mono text-[11px] text-outline outline-none focus:border-primary focus:text-on-surface"
-                            title="Target qty (kosong = default)"
+                            title={t("inventory.target.title")}
                           />
                         </div>
                       </td>
@@ -212,11 +233,9 @@ export function InventoryMatrix({
             }`}
           >
             <span className={`h-1.5 w-1.5 rounded-full ${changes.length > 0 ? "bg-secondary" : "bg-success"}`} />
-            {changes.length} perubahan belum disimpan
+            {t("inventory.dirty", { count: changes.length })}
           </span>
-          {message && (
-            <span className={message.ok ? "text-success" : "text-rose-300"}>{message.text}</span>
-          )}
+          {message && <span className={message.ok ? "text-success" : "text-rose-300"}>{message.text}</span>}
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -229,11 +248,11 @@ export function InventoryMatrix({
             }}
           >
             <Icon name="x" className="h-4 w-4" />
-            Batalkan
+            {t("inventory.discard")}
           </button>
           <button type="button" className="btn-primary" disabled={changes.length === 0 || pending} onClick={save}>
             {pending ? <Icon name="repeat" className="h-4 w-4 animate-spin" /> : <Icon name="check" className="h-4 w-4" />}
-            {pending ? "Menyimpan..." : "Simpan perubahan batch"}
+            {pending ? t("common.saving") : t("inventory.save")}
           </button>
         </div>
       </div>
