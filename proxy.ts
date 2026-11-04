@@ -1,23 +1,17 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { AUTH_USER_EMAIL_HEADER, AUTH_USER_ID_HEADER } from "@/lib/auth-headers";
 
 const PUBLIC_PATHS = new Set(["/login", "/register"]);
-
-function redirectWithCookies(target: URL, source: NextResponse) {
-  const response = NextResponse.redirect(target);
-  for (const cookie of source.cookies.getAll()) {
-    response.cookies.set(cookie);
-  }
-  return response;
-}
 
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  let response = NextResponse.next({ request });
-  let authenticated = false;
+  const pendingCookies: { name: string; value: string; options: CookieOptions }[] = [];
+  const pendingHeaders: Record<string, string> = {};
+  let user: { id: string; email: string | null } | null = null;
 
   if (url && key) {
     const supabase = createServerClient(url, key, {
@@ -27,35 +21,53 @@ export async function proxy(request: NextRequest) {
           for (const { name, value } of cookiesToSet) {
             request.cookies.set(name, value);
           }
-          response = NextResponse.next({ request });
-          for (const { name, value, options } of cookiesToSet) {
-            response.cookies.set(name, value, options);
-          }
-          for (const [name, value] of Object.entries(headers)) {
-            response.headers.set(name, value);
-          }
+          pendingCookies.push(...cookiesToSet);
+          Object.assign(pendingHeaders, headers);
         },
       },
     });
 
     const { data } = await supabase.auth.getUser();
-    authenticated = Boolean(data.user);
+    user = data.user ? { id: data.user.id, email: data.user.email ?? null } : null;
   }
 
-  if (pathname === "/auth/callback") return response;
+  // Teruskan hasil verifikasi ke Server Components supaya mereka tidak perlu
+  // memanggil Supabase Auth lagi. Nilai kiriman klien selalu dibuang lebih dulu.
+  const forwardedHeaders = new Headers(request.headers);
+  forwardedHeaders.delete(AUTH_USER_ID_HEADER);
+  forwardedHeaders.delete(AUTH_USER_EMAIL_HEADER);
+  if (user) {
+    forwardedHeaders.set(AUTH_USER_ID_HEADER, user.id);
+    forwardedHeaders.set(AUTH_USER_EMAIL_HEADER, user.email ?? "");
+  }
+
+  const build = (target?: URL) => {
+    const response = target
+      ? NextResponse.redirect(target)
+      : NextResponse.next({ request: { headers: forwardedHeaders } });
+    for (const { name, value, options } of pendingCookies) {
+      response.cookies.set(name, value, options);
+    }
+    for (const [name, value] of Object.entries(pendingHeaders)) {
+      response.headers.set(name, value);
+    }
+    return response;
+  };
+
+  if (pathname === "/auth/callback") return build();
 
   if (PUBLIC_PATHS.has(pathname)) {
-    if (!authenticated) return response;
-    return redirectWithCookies(new URL("/", request.url), response);
+    if (!user) return build();
+    return build(new URL("/", request.url));
   }
 
-  if (!authenticated) {
+  if (!user) {
     const loginUrl = new URL("/login", request.url);
     if (pathname !== "/") loginUrl.searchParams.set("next", `${pathname}${search}`);
-    return redirectWithCookies(loginUrl, response);
+    return build(loginUrl);
   }
 
-  return response;
+  return build();
 }
 
 export const config = {

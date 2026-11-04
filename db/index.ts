@@ -24,7 +24,9 @@ async function createDb(): Promise<Db> {
     const client = postgres(url, {
       // Supabase's transaction pooler (port 6543) does not support prepared statements.
       prepare: false,
-      max: 5,
+      // Enough for the 5-way parallel batch in loadLedger without oversubscribing
+      // the pooler's per-project connection limit.
+      max: 6,
       idle_timeout: 20,
       connect_timeout: 15,
       ssl: sslOption(url),

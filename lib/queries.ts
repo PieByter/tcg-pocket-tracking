@@ -1,9 +1,10 @@
 import "server-only";
 import { cache } from "react";
 import { and, asc, desc, eq, ilike, inArray, lte, or, sql, type SQL } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
 import { accounts as accountsTable, cards as cardsTable, holdings as holdingsTable, transfers as transfersTable } from "@/db/schema";
-import type { Account, Card, Holding, Transfer } from "@/db/schema";
+import type { Account, Card, Transfer } from "@/db/schema";
 import { getSettings, type AppSettings } from "./config";
 import {
   type AccountSummary,
@@ -39,20 +40,8 @@ export type Ledger = {
 
 const TRANSFER_LIMIT = 200;
 
-async function loadCards(ids: string[]): Promise<Card[]> {
-  if (ids.length === 0) return [];
-  const db = await getDb();
-  const unique = [...new Set(ids)];
-  const chunks: string[][] = [];
-  for (let index = 0; index < unique.length; index += 500) {
-    chunks.push(unique.slice(index, index + 500));
-  }
-  const rows: Card[] = [];
-  for (const chunk of chunks) {
-    rows.push(...(await db.select().from(cardsTable).where(inArray(cardsTable.id, chunk))));
-  }
-  return rows;
-}
+const cardOutTable = alias(cardsTable, "card_out");
+const cardInTable = alias(cardsTable, "card_in");
 
 export const loadAccounts = cache(async (userId: string): Promise<Account[]> => {
   const db = await getDb();
@@ -65,46 +54,45 @@ export const loadAccounts = cache(async (userId: string): Promise<Account[]> => 
 
 export const loadLedger = cache(async (userId: string): Promise<Ledger> => {
   const db = await getDb();
-  const settings = await getSettings(userId);
-  const accounts = await loadAccounts(userId);
-  const accountIds = accounts.map((account) => account.id);
-  const [holdingRows, transferRows, catalogProbe] = await Promise.all([
-    accountIds.length > 0
-      ? db.select().from(holdingsTable).where(inArray(holdingsTable.accountId, accountIds))
-      : ([] as Holding[]),
+
+  // Satu gelombang query paralel (satu round-trip ke database) — sebelumnya
+  // settings, accounts, holdings, transfers, dan kartu dimuat berurutan.
+  const [settings, accounts, holdingRows, transferRows, catalogProbe] = await Promise.all([
+    getSettings(userId),
+    loadAccounts(userId),
     db
-      .select()
+      .select({ holding: holdingsTable, card: cardsTable })
+      .from(holdingsTable)
+      .innerJoin(accountsTable, eq(accountsTable.id, holdingsTable.accountId))
+      .innerJoin(cardsTable, eq(cardsTable.id, holdingsTable.cardId))
+      .where(eq(accountsTable.userId, userId)),
+    db
+      .select({ transfer: transfersTable, cardOut: cardOutTable, cardIn: cardInTable })
       .from(transfersTable)
+      .leftJoin(cardOutTable, eq(cardOutTable.id, transfersTable.cardOutId))
+      .leftJoin(cardInTable, eq(cardInTable.id, transfersTable.cardInId))
       .where(eq(transfersTable.userId, userId))
       .orderBy(desc(transfersTable.createdAt))
       .limit(TRANSFER_LIMIT),
     db.select({ id: cardsTable.id }).from(cardsTable).limit(1),
   ]);
 
-  const cardRows = await loadCards([
-    ...holdingRows.map((row) => row.cardId),
-    ...transferRows.flatMap((row) => [row.cardOutId, row.cardInId].filter((id): id is string => Boolean(id))),
+  const cards = buildCards([
+    ...holdingRows.map((row) => row.card),
+    ...transferRows.flatMap((row) =>
+      [row.cardOut, row.cardIn].filter((card): card is Card => card !== null),
+    ),
   ]);
-
-  const cards = buildCards(cardRows);
-  const holdings = buildHoldings(holdingRows);
+  const holdings = buildHoldings(holdingRows.map((row) => row.holding));
   const accountById = new Map(accounts.map((account) => [account.id, account]));
   const now = new Date();
   const today = gameDayKey(now, settings);
 
-  const transfers: LedgerTransfer[] = transferRows.flatMap((row) => {
-    const fromAccount = accountById.get(row.fromAccountId);
-    const toAccount = accountById.get(row.toAccountId);
+  const transfers: LedgerTransfer[] = transferRows.flatMap(({ transfer, cardOut, cardIn }) => {
+    const fromAccount = accountById.get(transfer.fromAccountId);
+    const toAccount = accountById.get(transfer.toAccountId);
     if (!fromAccount || !toAccount) return [];
-    return [
-      {
-        ...row,
-        fromAccount,
-        toAccount,
-        cardOut: cards.get(row.cardOutId) ?? null,
-        cardIn: row.cardInId ? cards.get(row.cardInId) ?? null : null,
-      },
-    ];
+    return [{ ...transfer, fromAccount, toAccount, cardOut, cardIn }];
   });
 
   return {
@@ -114,7 +102,10 @@ export const loadLedger = cache(async (userId: string): Promise<Ledger> => {
     transfers,
     settings,
     today,
-    usage: computeUsage(transferRows, today),
+    usage: computeUsage(
+      transferRows.map((row) => row.transfer),
+      today,
+    ),
     summaries: summarizeAccounts(accounts, cards, holdings, settings),
     resetsInMinutes: minutesUntilReset(now, settings),
     catalogEmpty: catalogProbe.length === 0,

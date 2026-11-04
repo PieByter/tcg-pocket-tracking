@@ -1,4 +1,6 @@
+import { cache, Suspense } from "react";
 import { logout } from "@/app/actions";
+import { loadLedger } from "@/lib/queries";
 import { getI18n } from "@/lib/i18n/server";
 import { Logo } from "./brand";
 import { Icon } from "./icon";
@@ -6,7 +8,7 @@ import { LanguageSwitcher } from "./language-switcher";
 import { ResetClock } from "./reset-clock";
 import { MobileNav, SidebarNav } from "./sidebar-nav";
 
-export type ShellStats = {
+type ShellStats = {
   accountsCount: number;
   trackedCount: number;
   deficitAccounts: number;
@@ -16,13 +18,38 @@ export type ShellStats = {
   timeZone: string;
 };
 
+/**
+ * Statistik shell dimuat di dalam Suspense boundary terpisah supaya kerangka
+ * aplikasi (sidebar, header, navigasi) langsung tercetak tanpa menunggu ledger.
+ * Di-cache React agar sidebar, badge, jam reset, dan ribbon berbagi satu
+ * `loadLedger` yang sama.
+ */
+const loadShellStats = cache(async (userId: string): Promise<ShellStats> => {
+  const ledger = await loadLedger(userId);
+  const shareUsedToday = [...ledger.usage.receivedShare.values()].reduce(
+    (total, value) => total + value,
+    0,
+  );
+  return {
+    accountsCount: ledger.accounts.length,
+    trackedCount: ledger.summaries.filter((summary) => summary.status !== "untracked").length,
+    deficitAccounts: ledger.summaries.filter(
+      (summary) => summary.status === "needs" || summary.status === "critical",
+    ).length,
+    shareUsedToday,
+    shareCapacity: Math.max(1, ledger.accounts.length * ledger.settings.shareReceivePerDay),
+    resetsInMinutes: ledger.resetsInMinutes,
+    timeZone: ledger.settings.timeZone,
+  };
+});
+
 export async function AppShell({
   children,
-  stats,
+  statsUserId,
   userEmail,
 }: {
   children: React.ReactNode;
-  stats: ShellStats;
+  statsUserId: string;
   userEmail: string;
 }) {
   const { locale, t } = await getI18n();
@@ -40,25 +67,13 @@ export async function AppShell({
           </div>
         </div>
 
-        <div className="m-3 rounded-xl border border-white/10 bg-surface-container-low p-3">
-          <div className="flex items-center justify-between">
-            <span className="label-xs">{t("shell.multiSync")}</span>
-            <span className="flex items-center gap-1.5 font-mono text-label-sm text-success">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
-              {t("shell.live").toUpperCase()}
-            </span>
-          </div>
-          <p className="mt-2 flex items-baseline justify-between font-display text-sm text-on-surface">
-            {t("shell.accountsLocked")}
-            <span className="font-mono text-primary">
-              {stats.accountsCount} / {stats.accountsCount}
-            </span>
-          </p>
-          <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-container-highest">
-            <div className="h-full w-full bg-gradient-to-r from-primary-container to-primary" />
-          </div>
-          <p className="mt-2 font-mono text-label-sm text-outline">{stats.timeZone}</p>
-        </div>
+        <Suspense
+          fallback={
+            <div className="m-3 h-[136px] rounded-xl border border-white/10 bg-surface-container-low" />
+          }
+        >
+          <SidebarSync userId={statsUserId} />
+        </Suspense>
       </aside>
 
       <div className="lg:pl-72">
@@ -68,12 +83,13 @@ export async function AppShell({
               <Logo compact />
             </div>
 
-            <span className="hidden items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 font-mono text-label-sm uppercase tracking-wider text-primary sm:inline-flex">
-              <Icon name="shield" className="h-3.5 w-3.5" />
-              {t("shell.accountsLive", { count: stats.accountsCount })}
-            </span>
+            <Suspense fallback={<span className="hidden h-7 sm:inline-flex" />}>
+              <HeaderStatusBadge userId={statsUserId} />
+            </Suspense>
 
-            <ResetClock initialMinutes={stats.resetsInMinutes} />
+            <Suspense fallback={<span className="h-7 w-28" />}>
+              <HeaderResetClock userId={statsUserId} />
+            </Suspense>
 
             <div className="ml-auto flex items-center gap-2">
               <LanguageSwitcher locale={locale} t={t} compact />
@@ -99,44 +115,100 @@ export async function AppShell({
             </div>
           </div>
 
-          <div className="no-scrollbar flex items-center gap-4 overflow-x-auto border-t border-white/[0.05] bg-surface-container-lowest/60 px-4 py-2 lg:px-8">
-            <RibbonItem
-              tone="primary"
-              label={t("shell.ribbon.registry")}
-              value={t("shell.ribbon.registryValue", { count: stats.accountsCount })}
-            />
-            <span className="h-3 w-px shrink-0 bg-white/10" />
-            <RibbonItem
-              tone={stats.deficitAccounts > 0 ? "warning" : "success"}
-              label={t("shell.ribbon.alert")}
-              value={
-                stats.deficitAccounts > 0
-                  ? t("shell.ribbon.deficit", { count: stats.deficitAccounts })
-                  : stats.trackedCount === 0
-                    ? t("shell.ribbon.untracked")
-                    : t("shell.ribbon.allMeet")
-              }
-            />
-            <span className="h-3 w-px shrink-0 bg-white/10" />
-            <RibbonItem
-              tone="tertiary"
-              label={t("shell.ribbon.share")}
-              value={t("shell.ribbon.shareValue", {
-                used: stats.shareUsedToday,
-                capacity: stats.shareCapacity,
-              })}
-            />
-            <span className="ml-auto hidden shrink-0 items-center gap-1.5 font-mono text-label-sm uppercase tracking-wider text-outline md:flex">
-              <Icon name="clock" className="h-3.5 w-3.5" />
-              {t("shell.ribbon.sync")}
-            </span>
-          </div>
+          <Suspense
+            fallback={
+              <div className="h-[38px] border-t border-white/[0.05] bg-surface-container-lowest/60" />
+            }
+          >
+            <ShellRibbon userId={statsUserId} />
+          </Suspense>
         </header>
 
         <main className="mx-auto w-full max-w-[1440px] px-4 pb-28 pt-5 lg:px-8 lg:pb-12">{children}</main>
       </div>
 
       <MobileNav />
+    </div>
+  );
+}
+
+async function SidebarSync({ userId }: { userId: string }) {
+  const [{ t }, stats] = await Promise.all([getI18n(), loadShellStats(userId)]);
+
+  return (
+    <div className="m-3 rounded-xl border border-white/10 bg-surface-container-low p-3">
+      <div className="flex items-center justify-between">
+        <span className="label-xs">{t("shell.multiSync")}</span>
+        <span className="flex items-center gap-1.5 font-mono text-label-sm text-success">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
+          {t("shell.live").toUpperCase()}
+        </span>
+      </div>
+      <p className="mt-2 flex items-baseline justify-between font-display text-sm text-on-surface">
+        {t("shell.accountsLocked")}
+        <span className="font-mono text-primary">
+          {stats.accountsCount} / {stats.accountsCount}
+        </span>
+      </p>
+      <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-container-highest">
+        <div className="h-full w-full bg-gradient-to-r from-primary-container to-primary" />
+      </div>
+      <p className="mt-2 font-mono text-label-sm text-outline">{stats.timeZone}</p>
+    </div>
+  );
+}
+
+async function HeaderStatusBadge({ userId }: { userId: string }) {
+  const [{ t }, stats] = await Promise.all([getI18n(), loadShellStats(userId)]);
+
+  return (
+    <span className="hidden items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 font-mono text-label-sm uppercase tracking-wider text-primary sm:inline-flex">
+      <Icon name="shield" className="h-3.5 w-3.5" />
+      {t("shell.accountsLive", { count: stats.accountsCount })}
+    </span>
+  );
+}
+
+async function HeaderResetClock({ userId }: { userId: string }) {
+  const stats = await loadShellStats(userId);
+  return <ResetClock initialMinutes={stats.resetsInMinutes} />;
+}
+
+async function ShellRibbon({ userId }: { userId: string }) {
+  const [{ t }, stats] = await Promise.all([getI18n(), loadShellStats(userId)]);
+
+  return (
+    <div className="no-scrollbar flex items-center gap-4 overflow-x-auto border-t border-white/[0.05] bg-surface-container-lowest/60 px-4 py-2 lg:px-8">
+      <RibbonItem
+        tone="primary"
+        label={t("shell.ribbon.registry")}
+        value={t("shell.ribbon.registryValue", { count: stats.accountsCount })}
+      />
+      <span className="h-3 w-px shrink-0 bg-white/10" />
+      <RibbonItem
+        tone={stats.deficitAccounts > 0 ? "warning" : "success"}
+        label={t("shell.ribbon.alert")}
+        value={
+          stats.deficitAccounts > 0
+            ? t("shell.ribbon.deficit", { count: stats.deficitAccounts })
+            : stats.trackedCount === 0
+              ? t("shell.ribbon.untracked")
+              : t("shell.ribbon.allMeet")
+        }
+      />
+      <span className="h-3 w-px shrink-0 bg-white/10" />
+      <RibbonItem
+        tone="tertiary"
+        label={t("shell.ribbon.share")}
+        value={t("shell.ribbon.shareValue", {
+          used: stats.shareUsedToday,
+          capacity: stats.shareCapacity,
+        })}
+      />
+      <span className="ml-auto hidden shrink-0 items-center gap-1.5 font-mono text-label-sm uppercase tracking-wider text-outline md:flex">
+        <Icon name="clock" className="h-3.5 w-3.5" />
+        {t("shell.ribbon.sync")}
+      </span>
     </div>
   );
 }
