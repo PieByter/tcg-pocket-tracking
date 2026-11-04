@@ -42,7 +42,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       lang={locale}
       className={`${geist.variable} ${grotesk.variable} ${mono.variable} h-full antialiased`}
     >
-      <body className="min-h-full">
+      {/* suppressHydrationWarning: browser extensions (e.g. ColorZilla's cz-shortcut-listen) inject attributes onto <body> before hydration. */}
+      <body className="min-h-full" suppressHydrationWarning>
         <I18nProvider locale={locale}>{children}</I18nProvider>
         <ServiceWorkerRegister />
       </body>
