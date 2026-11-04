@@ -111,7 +111,40 @@ describe("buildPlan", () => {
     expect(plan.feasible).toBe(false);
   });
 
-  it("tidak pernah menjadwalkan kartu yang tidak bisa dipindahkan", () => {
+  it("menghormati transfer planned dan tidak menjadwalkannya dua kali", () => {
+    const accounts = [account("a", { minEx: 0 }), account("b", { minEx: 0 }), account("c", { minEx: 0 })];
+    const plan = buildPlan({
+      accounts,
+      cards,
+      holdings: holdings({
+        a: { "A1-200": { qty: 6, targetQty: 2 } },
+        b: { "A1-200": { qty: 0, targetQty: 2 } },
+        c: { "A1-200": { qty: 0, targetQty: 2 } },
+      }),
+      settings,
+      today: TODAY,
+      transfers: [
+        {
+          method: "share",
+          fromAccountId: "a",
+          toAccountId: "b",
+          gameDay: null,
+          plannedDay: "2026-11-05",
+          status: "planned",
+          cardOutId: "A1-200",
+          cardInId: null,
+        },
+      ],
+    });
+
+    // Slot besok untuk b sudah dipesan transfer planned.
+    expect(plan.slots.some((slot) => slot.day === "2026-11-05" && slot.to.id === "b")).toBe(false);
+    // Stok yang sudah dijanjikan tidak dipakai lagi: total 4 kartu (1 planned + 3 slot).
+    expect(plan.slots.filter((slot) => slot.card.id === "A1-200")).toHaveLength(3);
+    expect(plan.feasible).toBe(true);
+  });
+
+  it("tidak menjadwalkan kartu yang tidak bisa dipindahkan", () => {
     const crown = card("A1-900", {
       name: "Crown Pikachu",
       rarityCode: "UR",

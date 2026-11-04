@@ -47,21 +47,22 @@ export function InventoryMatrix({
   }
 
   const changes = useMemo(() => {
-    const list: { accountId: string; cardId: string; qty: number; targetQty: number }[] = [];
+    const list: { accountId: string; cardId: string; qty: number; targetQty?: number }[] = [];
     for (const row of rows) {
       for (const account of accounts) {
         const key = cellKey(account.id, row.card.id);
         const before = initial.get(key);
         const after = draft.get(key);
         if (!before || !after) continue;
-        if (before.qty !== after.qty || before.targetQty !== after.targetQty) {
-          list.push({
-            accountId: account.id,
-            cardId: row.card.id,
-            qty: after.qty,
-            targetQty: after.targetQty,
-          });
-        }
+        if (before.qty === after.qty && before.targetQty === after.targetQty) continue;
+        list.push({
+          accountId: account.id,
+          cardId: row.card.id,
+          qty: after.qty,
+          // `0` berarti belum diset (pakai default), jadi hanya kirim target
+          // bila user benar-benar mengubahnya.
+          targetQty: before.targetQty === after.targetQty ? undefined : after.targetQty,
+        });
       }
     }
     return list;

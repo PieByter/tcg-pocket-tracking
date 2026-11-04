@@ -30,6 +30,12 @@ export type PlannerResult = {
 type SimCard = { qty: number; target: number };
 type Sim = Map<string, Map<string, SimCard>>;
 
+export type PlannerTransfer = UsageTransfer & {
+  cardOutId?: string;
+  cardInId?: string | null;
+  plannedDay?: string | null;
+};
+
 export type PlannerInput = {
   accounts: Account[];
   cards: CardMap;
@@ -37,8 +43,8 @@ export type PlannerInput = {
   settings: AppSettings;
   today: string;
   horizonDays?: number;
-  /** Trade yang sudah terjadi, dipakai untuk cooldown pasangan. */
-  transfers?: UsageTransfer[];
+  /** Transfer sent/confirmed (kuota terpakai) dan planned (komitmen). */
+  transfers?: PlannerTransfer[];
 };
 
 function cloneSim(holdings: HoldingsByAccount): Sim {
@@ -149,6 +155,59 @@ export function buildPlan(input: PlannerInput): PlannerResult {
 
   const slots: PlanSlot[] = [];
   const bump = (map: Map<string, number>, key: string) => map.set(key, (map.get(key) ?? 0) + 1);
+
+  // Transfer "planned" adalah komitmen: kartu dianggap akan berpindah dan
+  // slot kuotanya direservasi supaya planner tidak menjadwalkannya dua kali.
+  for (const transfer of usageTransfers) {
+    if (transfer.status !== "planned" || !transfer.cardOutId) continue;
+    const day = transfer.plannedDay && transfer.plannedDay > today ? transfer.plannedDay : today;
+    const book = bookFor(day);
+
+    const card = cards.get(transfer.cardOutId);
+    if (card) {
+      setQty(
+        sim,
+        transfer.fromAccountId,
+        card.id,
+        qtyOf(sim, transfer.fromAccountId, card.id) - 1,
+        fallbackTarget(card, settings),
+      );
+      setQty(
+        sim,
+        transfer.toAccountId,
+        card.id,
+        qtyOf(sim, transfer.toAccountId, card.id) + 1,
+        fallbackTarget(card, settings),
+      );
+    }
+
+    if (transfer.method === "share") {
+      bump(book.receive, transfer.toAccountId);
+      bump(book.sharePairs, pairKey(transfer.fromAccountId, transfer.toAccountId));
+    } else {
+      bump(book.trades, transfer.fromAccountId);
+      bump(book.trades, transfer.toAccountId);
+      lastTradePair.set(pairKey(transfer.fromAccountId, transfer.toAccountId), day);
+
+      const cardIn = transfer.cardInId ? cards.get(transfer.cardInId) : undefined;
+      if (cardIn) {
+        setQty(
+          sim,
+          transfer.toAccountId,
+          cardIn.id,
+          qtyOf(sim, transfer.toAccountId, cardIn.id) - 1,
+          fallbackTarget(cardIn, settings),
+        );
+        setQty(
+          sim,
+          transfer.fromAccountId,
+          cardIn.id,
+          qtyOf(sim, transfer.fromAccountId, cardIn.id) + 1,
+          fallbackTarget(cardIn, settings),
+        );
+      }
+    }
+  }
 
   const receiveFree = (day: string, accountId: string) =>
     (bookFor(day).receive.get(accountId) ?? 0) < settings.shareReceivePerDay;
