@@ -147,6 +147,10 @@
     @apply font-mono text-label-sm uppercase tracking-[0.12em] text-outline;
   }
 
+  .skeleton {
+    @apply animate-pulse rounded-md bg-surface-container-highest/80;
+  }
+
   .divider {
     @apply border-t border-white/[0.07];
   }

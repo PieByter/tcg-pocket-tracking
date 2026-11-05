@@ -21,6 +21,7 @@ import { computeUsage } from "@/lib/domain";
 import { gameDayKey } from "@/lib/game-day";
 import { CONFIG_KEYS, parseSettings } from "@/lib/settings";
 import { createSupabaseServerClient, supabaseConfigured } from "@/lib/supabase/server";
+import { createSupabaseAdminClient, supabaseAdminConfigured } from "@/lib/supabase/admin";
 import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, type MessageKey } from "@/lib/i18n";
 import { buildPlan } from "@/lib/planner";
 import { parseCollection, type ImportIssue, type ImportMode, type ImportRow } from "@/lib/import";
@@ -33,6 +34,8 @@ export type ActionResult = {
 };
 export type LoginState = ActionResult | null;
 export type RegisterState = ActionResult | null;
+export type ResetState = ActionResult | null;
+export type ChangePasswordState = ActionResult | null;
 
 class ActionError extends Error {
   constructor(
@@ -162,6 +165,81 @@ export async function logout(): Promise<void> {
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();
   redirect("/login");
+}
+
+/**
+ * Reset password tanpa email (memakai Supabase admin API).
+ * PERINGATAN: siapa pun yang tahu email bisa mengganti password akun itu —
+ * hanya aman untuk aplikasi privat/self-hosted.
+ */
+export async function resetPassword(
+  _previous: ResetState,
+  formData: FormData,
+): Promise<ResetState> {
+  if (!supabaseAdminConfigured()) {
+    return { ok: false, key: "reset.notConfigured" };
+  }
+
+  const email = text(formData, "email").toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  const confirm = String(formData.get("confirmPassword") ?? "");
+
+  const parsed = credentialsSchema.safeParse({ email, password });
+  if (!parsed.success) {
+    return { ok: false, key: "reset.invalid" };
+  }
+  if (password !== confirm) {
+    return { ok: false, key: "reset.mismatch" };
+  }
+
+  const db = await getDb();
+  const rows = (await db.execute(
+    sql`select id from auth.users where lower(email) = lower(${parsed.data.email}) limit 1`,
+  )) as unknown as { id: string }[];
+  const userId = rows[0]?.id;
+  if (!userId) {
+    return { ok: false, key: "reset.notFound" };
+  }
+
+  const admin = createSupabaseAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(userId, {
+    password: parsed.data.password,
+  });
+  if (error) {
+    console.error(error);
+    return { ok: false, key: "reset.error" };
+  }
+
+  return { ok: true, key: "reset.success" };
+}
+
+export async function changePassword(
+  _previous: ChangePasswordState,
+  formData: FormData,
+): Promise<ChangePasswordState> {
+  if (!supabaseConfigured()) {
+    return { ok: false, key: "login.notConfigured" };
+  }
+
+  const userId = await requireUserId();
+  const password = String(formData.get("password") ?? "");
+  const confirm = String(formData.get("confirmPassword") ?? "");
+
+  if (password.length < 8 || password.length > 200) {
+    return { ok: false, key: "settings.security.invalid" };
+  }
+  if (password !== confirm) {
+    return { ok: false, key: "settings.security.mismatch" };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    console.error(`changePassword(${userId}):`, error.message);
+    return { ok: false, key: "settings.security.error" };
+  }
+
+  return { ok: true, key: "settings.security.success" };
 }
 
 export async function changeLocale(formData: FormData): Promise<void> {

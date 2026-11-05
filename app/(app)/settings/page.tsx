@@ -2,6 +2,7 @@ import Link from "next/link";
 import { deleteAccount, saveAccount, saveSettings } from "@/app/actions";
 import { ActionButton } from "@/components/action-button";
 import { ActionForm } from "@/components/action-form";
+import { ChangePasswordForm } from "@/components/change-password-form";
 import { Icon } from "@/components/icon";
 import { PageHeader, SectionHeading } from "@/components/ui";
 import { formatNumber } from "@/lib/format";
@@ -232,6 +233,16 @@ export default async function SettingsPage() {
             ))}
           </div>
           <p className="mt-2 text-body-sm text-on-surface-variant">{t("settings.rules.costs")}</p>
+        </div>
+      </section>
+
+      <section>
+        <SectionHeading
+          title={t("settings.security.title")}
+          subtitle={t("settings.security.subtitle")}
+        />
+        <div className="panel p-4">
+          <ChangePasswordForm />
         </div>
       </section>
 

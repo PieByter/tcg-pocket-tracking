@@ -14,27 +14,29 @@ export function LanguageSwitcher({
     <div
       role="group"
       aria-label={t("common.language")}
-      className="inline-flex items-center rounded-lg border border-white/10 bg-white/5 p-0.5"
+      className="inline-flex items-center gap-0.5 rounded-lg border border-white/10 bg-white/5 p-0.5"
     >
-      {LOCALES.map((item) => {
-        const active = item.value === locale;
-        return (
-          <form key={item.value} action={changeLocale}>
-            <input type="hidden" name="locale" value={item.value} />
+      <form action={changeLocale} className="contents">
+        {LOCALES.map((item) => {
+          const active = item.value === locale;
+          return (
             <button
+              key={item.value}
               type="submit"
+              name="locale"
+              value={item.value}
               aria-pressed={active}
-              className={`rounded-md px-2 py-1 font-mono text-label-sm uppercase tracking-wider transition ${
+              className={`inline-flex h-6 items-center justify-center rounded-md px-2 font-mono text-label-sm uppercase tracking-wider transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
                 active
                   ? "bg-primary/15 text-primary"
-                  : "text-on-surface-variant hover:text-on-surface"
+                  : "text-outline hover:bg-white/5 hover:text-on-surface"
               }`}
             >
               {compact ? item.value.toUpperCase() : t(item.labelKey)}
             </button>
-          </form>
-        );
-      })}
+          );
+        })}
+      </form>
     </div>
   );
 }

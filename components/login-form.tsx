@@ -32,9 +32,14 @@ export function LoginForm({ configured, next }: { configured: boolean; next?: st
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor="password" className="label-xs block">
-          {t("login.password")}
-        </label>
+        <div className="flex items-baseline justify-between gap-2">
+          <label htmlFor="password" className="label-xs block">
+            {t("login.password")}
+          </label>
+          <Link href="/reset-password" className="text-xs text-primary hover:underline">
+            {t("login.forgot")}
+          </Link>
+        </div>
         <input
           id="password"
           name="password"

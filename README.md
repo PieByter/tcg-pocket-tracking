@@ -2,8 +2,6 @@
 
 Ledger dan planner perpindahan kartu untuk banyak akun **Pokémon TCG Pocket**. Aplikasi ini **pencatat dan perencana**, bukan integrasi ke game: tidak ada API resmi, dan aplikasi tidak pernah menyimpan kredensial game.
 
-Dibangun sesuai [PRD.md](./PRD.md) dan mengikuti design system PocketLedger di [stitch_pocket_trade_ledger/pocketledger/DESIGN.md](./stitch_pocket_trade_ledger/pocketledger/DESIGN.md).
-
 ## Fitur
 
 - **Dashboard** — ringkasan defisit ex per akun, surplus yang bisa dilepas, kuota harian, dan aktivitas transfer terbaru.
@@ -108,6 +106,14 @@ Hanya katalog kartu yang di-upsert; 8 akun default dan config dilewati. Ini berg
    -- tanpa policy => tidak ada akses lewat PostgREST/anon key
    ```
    Koneksi aplikasi memakai user `postgres`/service yang melewati RLS, jadi isolasi per user dijaga oleh query aplikasi.
+
+### Reset password tanpa email
+
+Halaman `/reset-password` (link **Lupa password?** di halaman login) langsung mengganti password lewat Supabase Admin API — tidak ada email yang dikirim. Syaratnya `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API → secret key) tersedia di environment server; key ini tidak pernah dikirim ke browser.
+
+> **Peringatan:** dengan konfigurasi ini siapa pun yang tahu sebuah email bisa mengganti password akun tersebut. Hanya cocok untuk aplikasi privat/personal — jangan dipakai di deployment publik.
+
+User yang sudah login tetap bisa mengganti password sendiri di **Settings → Keamanan akun**; jalur ini memakai sesi Supabase biasa (tanpa service role key, tanpa email).
 
 ## Perintah
 

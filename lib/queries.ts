@@ -225,6 +225,37 @@ export async function loadInventoryPage(
   };
 }
 
+export type AlbumCard = { card: Card; qty: number };
+
+export type AlbumData = {
+  accounts: Account[];
+  account: Account | null;
+  cards: AlbumCard[];
+  totalQty: number;
+};
+
+/** Semua kartu yang dimiliki satu akun, urut rarity tertinggi (Crown → Diamond 1). */
+export async function loadAlbum(userId: string, accountId?: string): Promise<AlbumData> {
+  const accounts = await loadAccounts(userId);
+  const account = accounts.find((item) => item.id === accountId) ?? accounts[0] ?? null;
+  if (!account) return { accounts, account: null, cards: [], totalQty: 0 };
+
+  const db = await getDb();
+  const rows = await db
+    .select({ card: cardsTable, qty: holdingsTable.qty })
+    .from(holdingsTable)
+    .innerJoin(cardsTable, eq(cardsTable.id, holdingsTable.cardId))
+    .where(and(eq(holdingsTable.accountId, account.id), sql`${holdingsTable.qty} > 0`))
+    .orderBy(desc(cardsTable.rarityScore), asc(cardsTable.setCode), asc(cardsTable.number));
+
+  return {
+    accounts,
+    account,
+    cards: rows.map((row) => ({ card: row.card, qty: row.qty })),
+    totalQty: rows.reduce((total, row) => total + row.qty, 0),
+  };
+}
+
 export async function catalogCardCount(): Promise<number> {
   const db = await getDb();
   const rows = await db.select({ total: sql<number>`count(*)::int` }).from(cardsTable);
